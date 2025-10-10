@@ -1,0 +1,452 @@
+#!/bin/zsh
+# vdev Shell Configuration
+# Source this file from your .zshrc or .bashrc
+# Location: ~/dev-notes/vibe-dev/vdev.rc
+# Last Updated: 2025-10-08
+
+# ============================================================================
+# VDEV ENVIRONMENT SETUP
+# ============================================================================
+
+# vdev tool/codebase location
+export VDEV_ROOT="${HOME}/projects/vibe-dev"
+
+# User config/data location (Samba share)
+export VDEV_DATA="${HOME}/vibe-dev"
+export VDEV_CONTEXTS="${VDEV_DATA}/contexts"
+export VDEV_BIN="${HOME}/.local/bin"
+
+# Ensure vdev directories exist
+[[ ! -d "${VDEV_ROOT}" ]] && mkdir -p "${VDEV_ROOT}"
+[[ ! -d "${VDEV_DATA}" ]] && mkdir -p "${VDEV_DATA}"
+[[ ! -d "${VDEV_CONTEXTS}" ]] && mkdir -p "${VDEV_CONTEXTS}"
+[[ ! -d "${VDEV_BIN}" ]] && mkdir -p "${VDEV_BIN}"
+
+# ============================================================================
+# VDEV CORE ALIASES
+# ============================================================================
+
+# Context Management
+alias vdev-load='${VDEV_ROOT}/load-context.sh'
+alias vdev-me='cat ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
+alias vdev-index='cat ${VDEV_CONTEXTS}/people/ahmed-masud/INDEX.md'
+alias vdev-urgent='grep -A 30 "URGENT PRIORITIES" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
+alias vdev-week='grep -A 20 "This Week" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
+alias vdev-matrix='grep -A 10 "PRIORITY MATRIX" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
+alias vdev-todo='cat ${VDEV_ROOT}/TODO.md'
+alias vdev-roadmap='cat ${VDEV_ROOT}/ROADMAP.md'
+alias vdev-help='cat ${VDEV_ROOT}/QUICK-START.md'
+
+# Quick edits
+alias vdev-edit-priorities='${EDITOR:-vim} ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
+alias vdev-edit-todo='${EDITOR:-vim} ${VDEV_ROOT}/TODO.md'
+alias vdev-edit-context='${EDITOR:-vim} ${VDEV_CONTEXTS}/people/ahmed-masud/README.md'
+
+# Navigation
+alias cdvdev='cd ${VDEV_ROOT}'          # Go to vibe-dev tool code
+alias cdvdata='cd ${VDEV_DATA}'         # Go to vibe-dev user data
+alias cdme='cd ${VDEV_CONTEXTS}/people/ahmed-masud'
+alias cdcontexts='cd ${VDEV_CONTEXTS}'
+
+# Project navigation (from priorities)
+alias cdchatgpt='cd ${HOME}/projects/ahmed-masud'
+alias cdresiliate='cd ${VDEV_DATA}/resiliate-backend'
+
+# ============================================================================
+# VDEV FUNCTIONS
+# ============================================================================
+
+# Load a context by name
+vdev() {
+    local cmd="${1:-help}"
+    shift
+    
+    case "${cmd}" in
+        load)
+            ${VDEV_ROOT}/load-context.sh "$@"
+            ;;
+        me|my|self)
+            cat ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md | ${PAGER:-less}
+            ;;
+        urgent)
+            grep -A 40 "URGENT PRIORITIES" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md
+            ;;
+        week|weekly)
+            echo "=== This Week's Tasks ==="
+            grep -A 20 "This Week" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md
+            ;;
+        month|monthly)
+            echo "=== Next Month's Plan ==="
+            grep -A 15 "Next Month" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md
+            ;;
+        todo|todos)
+            cat ${VDEV_ROOT}/TODO.md | ${PAGER:-less}
+            ;;
+        edit)
+            ${EDITOR:-vim} ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md
+            ;;
+        contexts|list)
+            echo "Available contexts:"
+            echo ""
+            for type in people places things; do
+                if [[ -d "${VDEV_CONTEXTS}/${type}" ]]; then
+                    echo "📂 ${type}:"
+                    ls -1 "${VDEV_CONTEXTS}/${type}" 2>/dev/null | sed 's/^/  - /'
+                fi
+            done
+            ;;
+        status)
+            echo "╔════════════════════════════════════════════════════════╗"
+            echo "║              vdev Status Dashboard                     ║"
+            echo "╚════════════════════════════════════════════════════════╝"
+            echo ""
+            echo "📍 Location: ${VDEV_ROOT}"
+            echo "👤 Context: Ahmed Masud"
+            echo ""
+            echo "🔥 Urgent Items:"
+            grep -A 5 "Status.*NOT STARTED\|Status.*IN PROGRESS" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md 2>/dev/null | head -10
+            echo ""
+            echo "📊 Priority Matrix:"
+            grep -A 6 "Priority Matrix" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md 2>/dev/null | tail -5
+            ;;
+        search)
+            if [[ -z "$1" ]]; then
+                echo "Usage: vdev search <query>"
+                return 1
+            fi
+            echo "🔍 Searching contexts for: $@"
+            grep -r "$@" ${VDEV_CONTEXTS}/ 2>/dev/null
+            ;;
+        update)
+            echo "🔄 Updating vdev system..."
+            cd ${VDEV_ROOT}
+            if [[ -d .git ]]; then
+                git pull
+                echo "✅ vdev updated successfully"
+            else
+                echo "⚠️  No git repository found. Manual update required."
+            fi
+            ;;
+        help|--help|-h)
+            cat <<EOF
+╔════════════════════════════════════════════════════════════════════╗
+║                     vdev - Development Context Manager             ║
+╚════════════════════════════════════════════════════════════════════╝
+
+USAGE:
+  vdev <command> [options]
+
+COMMANDS:
+  load <name>          Load a context by name
+  me|my|self          View your personal priorities
+  urgent              Show urgent items
+  week|weekly         Show this week's tasks
+  month|monthly       Show next month's plan
+  todo|todos          View all TODO items
+  edit                Edit your priorities
+  contexts|list       List all available contexts
+  status              Show vdev status dashboard
+  search <query>      Search across all contexts
+  update              Update vdev system from git
+  help                Show this help message
+
+ALIASES:
+  vdev-me             View priorities
+  vdev-urgent         Show urgent items
+  vdev-week           Show this week's tasks
+  vdev-matrix         Show priority matrix
+  vdev-todo           View all TODOs
+  vdev-load <name>    Load a context
+  
+  cdvdev              Navigate to vdev directory
+  cdnotes             Navigate to dev-notes
+  cdme                Navigate to your context directory
+
+EXAMPLES:
+  vdev me                        # View your priorities
+  vdev urgent                    # Check urgent items
+  vdev load denis-krusos         # Load Denis's context
+  vdev search "email"            # Search for email references
+  vdev-week                      # Quick alias for weekly tasks
+
+LOCATION:
+  Root: ${VDEV_ROOT}
+  Your Context: ${VDEV_CONTEXTS}/people/ahmed-masud/
+  
+For more help: cat ${VDEV_ROOT}/QUICK-START.md
+EOF
+            ;;
+        *)
+            echo "Unknown command: ${cmd}"
+            echo "Run 'vdev help' for usage information"
+            return 1
+            ;;
+    esac
+}
+
+# Quick context loader with tab completion
+_vdev_load_completion() {
+    local contexts=()
+    for type in people places things; do
+        if [[ -d "${VDEV_CONTEXTS}/${type}" ]]; then
+            for ctx in ${VDEV_CONTEXTS}/${type}/*(/); do
+                contexts+=($(basename ${ctx}))
+            done
+        fi
+    done
+    compadd -a contexts
+}
+
+# Register completion if using zsh
+if [[ -n "${ZSH_VERSION}" ]]; then
+    compdef _vdev_load_completion vdev-load
+fi
+
+# Quick priority check function
+vdev-check() {
+    echo "╔════════════════════════════════════════════════════════╗"
+    echo "║           Quick Priority Check                         ║"
+    echo "╚════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "🔥 URGENT (Next 5 days):"
+    grep -A 8 "Status.*NOT STARTED" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md 2>/dev/null | head -12
+    echo ""
+    echo "📅 This Week:"
+    grep -A 6 "This Week" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md 2>/dev/null | tail -5
+}
+
+# Morning routine - run this when you start your day
+vdev-morning() {
+    clear
+    echo "╔════════════════════════════════════════════════════════════════════╗"
+    echo "║                  Good Morning, Ahmed! 🌅                           ║"
+    echo "╚════════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "📅 Date: $(date '+%A, %B %d, %Y')"
+    echo "⏰ Time: $(date '+%I:%M %p')"
+    echo ""
+    echo "────────────────────────────────────────────────────────────────────"
+    echo ""
+    
+    # Check urgent items
+    echo "🔥 URGENT ITEMS:"
+    grep -A 10 "URGENT PRIORITIES" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md 2>/dev/null | head -15
+    echo ""
+    
+    # Check this week
+    echo "📋 THIS WEEK'S FOCUS:"
+    grep -A 8 "This Week" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md 2>/dev/null | tail -6
+    echo ""
+    
+    echo "────────────────────────────────────────────────────────────────────"
+    echo ""
+    echo "💡 Quick Commands:"
+    echo "  vdev me          - View full priorities"
+    echo "  vdev urgent      - Show urgent details"
+    echo "  vdev-week        - This week's tasks"
+    echo "  vdev todo        - View all TODOs"
+    echo ""
+}
+
+# Evening review - run this at end of day
+vdev-evening() {
+    clear
+    echo "╔════════════════════════════════════════════════════════════════════╗"
+    echo "║                  End of Day Review 🌙                              ║"
+    echo "╚════════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "📅 Date: $(date '+%A, %B %d, %Y')"
+    echo ""
+    
+    echo "📊 Priority Status:"
+    grep -A 6 "PRIORITY MATRIX" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md 2>/dev/null | tail -5
+    echo ""
+    
+    echo "────────────────────────────────────────────────────────────────────"
+    echo ""
+    echo "💡 Tomorrow's Prep:"
+    echo "  • Update PRIORITIES.md with today's progress"
+    echo "  • Review urgent deadline (Email: 5 days)"
+    echo "  • Plan tomorrow's focus area"
+    echo ""
+    echo "Quick edit: vdev edit"
+    echo ""
+}
+
+# ============================================================================
+# VDEV SMART NAVIGATION
+# ============================================================================
+
+# Quick jump to project based on context
+cdproject() {
+    local project="$1"
+    case "${project}" in
+        chatgpt|ollama)
+            cd ${HOME}/projects/ahmed-masud
+            ;;
+        vdev|vibe)
+            cd ${VDEV_ROOT}
+            ;;
+        vdata|data)
+            cd ${VDEV_DATA}
+            ;;
+        aifs|resiliate)
+            cd ${VDEV_DATA}/resiliate-backend
+            ;;
+        *)
+            echo "Unknown project: ${project}"
+            echo "Available: chatgpt, vdev, vdata, aifs"
+            return 1
+            ;;
+    esac
+    pwd
+}
+
+# ============================================================================
+# VDEV TOOLS AUTO-INSTALLER
+# ============================================================================
+
+# Install/update vdev tools (symlinks to load-context.sh)
+vdev-install() {
+    echo "🔧 Installing vdev tools..."
+    
+    # Create symlink for vdev command in ~/.local/bin
+    if [[ -f "${VDEV_ROOT}/load-context.sh" ]]; then
+        ln -sf "${VDEV_ROOT}/load-context.sh" "${VDEV_BIN}/vdev-load"
+        chmod +x "${VDEV_ROOT}/load-context.sh"
+        echo "✅ Installed: vdev-load"
+    fi
+    
+    # Ensure vdev.rc is up to date
+    if [[ -f "${VDEV_ROOT}/vdev.rc" ]]; then
+        echo "✅ vdev.rc is available at ${VDEV_ROOT}/vdev.rc"
+        echo "   Make sure it's sourced in your .zshrc"
+    fi
+    
+    echo ""
+    echo "✨ Installation complete!"
+    echo ""
+    echo "To enable in new shells, add to ~/.zshrc:"
+    echo "  source ${VDEV_ROOT}/vdev.rc"
+    echo ""
+}
+
+# ============================================================================
+# VDEV INITIALIZATION MESSAGE
+# ============================================================================
+
+# Show brief status when shell loads (only in interactive shells)
+if [[ -o interactive ]] && [[ -z "${VDEV_LOADED}" ]]; then
+    export VDEV_LOADED=1
+    
+    # Only show if priorities file exists
+    if [[ -f "${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md" ]]; then
+        echo "✨ vdev loaded | Type 'vdev help' for commands | 'vdev-morning' for daily brief"
+        
+        # Check for urgent items and show notification
+        if grep -q "Status.*NOT STARTED.*Deadline" ${VDEV_CONTEXTS}/people/ahmed-masud/PRIORITIES.md 2>/dev/null; then
+            echo "⚠️  URGENT: You have items with approaching deadlines! Run 'vdev urgent'"
+        fi
+    fi
+fi
+
+# ============================================================================
+# COMPLETION SETUP
+# ============================================================================
+
+# Zsh completions for vdev command
+if [[ -n "${ZSH_VERSION}" ]]; then
+    _vdev() {
+        local -a commands
+        commands=(
+            'load:Load a context by name'
+            'me:View your priorities'
+            'urgent:Show urgent items'
+            'week:Show this week tasks'
+            'month:Show next month plan'
+            'todo:View all TODOs'
+            'edit:Edit priorities'
+            'contexts:List all contexts'
+            'status:Show status dashboard'
+            'search:Search contexts'
+            'update:Update vdev system'
+            'help:Show help'
+        )
+        _describe 'vdev command' commands
+    }
+    
+    compdef _vdev vdev
+fi
+
+# ============================================================================
+# PATH VERIFICATION
+# ============================================================================
+
+# Ensure ~/.local/bin is in PATH
+if [[ ":${PATH}:" != *":${HOME}/.local/bin:"* ]]; then
+    export PATH="${HOME}/.local/bin:${PATH}"
+fi
+
+# ============================================================================
+# CAFFEINATE HELPERS (Prevent Sleep During Operations)
+# ============================================================================
+
+# Prevent sleep for duration (in seconds)
+vdev-caffeinate() {
+    local duration="${1:-3600}"  # Default 1 hour
+    echo "☕ Keeping system awake for ${duration} seconds..."
+    echo "   Press Ctrl+C to stop"
+    caffeinate -disu -t ${duration}
+}
+
+# Prevent sleep while running a command
+vdev-nosleep() {
+    if [[ -z "$1" ]]; then
+        echo "Usage: vdev-nosleep <command>"
+        echo "Example: vdev-nosleep 'long-running-script.sh'"
+        return 1
+    fi
+    echo "☕ Running with caffeinate (system won't sleep)..."
+    caffeinate -disu "$@"
+}
+
+# Toggle indefinite caffeinate (background process)
+vdev-awake() {
+    if pgrep -f "caffeinate -disu" > /dev/null; then
+        pkill -f "caffeinate -disu"
+        echo "😴 System can now sleep normally"
+    else
+        caffeinate -disu &
+        echo "☕ System will stay awake indefinitely"
+        echo "   Run 'vdev-awake' again to allow sleep"
+    fi
+}
+
+# ============================================================================
+# USER CONFIGURATION LOADING
+# ============================================================================
+
+# Load user configuration if it exists
+if [[ -f "${VDEV_DATA}/.vdevrc" ]]; then
+    source "${VDEV_DATA}/.vdevrc"
+fi
+
+# ============================================================================
+# END OF VDEV CONFIGURATION
+# ============================================================================
+
+# ============================================================================
+# VIBE-PROJECTS MODULE INTEGRATION
+# ============================================================================
+
+export VPROJECTS_ROOT="${VDEV_ROOT}/modules/vibe-projects"
+
+# Navigation aliases
+alias cdvprojects='cd ${VPROJECTS_ROOT}'
+alias vprojects='${VPROJECTS_ROOT}/src/vprojects/cli.py'
+
+# Add vibe-projects to PATH if installed
+if [[ -d "${VPROJECTS_ROOT}" ]]; then
+    export PATH="${VPROJECTS_ROOT}/bin:${PATH}"
+fi
+
