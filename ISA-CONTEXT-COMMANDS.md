@@ -6,14 +6,14 @@ ISA now provides high-level commands for managing the semantic context system wi
 
 ### 🗣️ Natural Language Commands NEW!
 
-You can now use natural language to control ISA! Simply use `computer do` followed by what you want:
+You can now use natural language to control ISA! Just speak to the computer naturally:
 
 ```bash
 # These all work!
-computer do show me context stats
-computer do check if everything is healthy
-computer do search for deployment procedures
-computer do sync all my contexts
+computer show me context stats
+computer are the services healthy
+computer search for deployment procedures
+computer sync all my contexts
 ```
 
 ISA will automatically understand your intent and execute the right command. See [Natural Language Commands](#natural-language-commands) section for more details.
@@ -172,55 +172,59 @@ Rebuilds the entire vector database index. Use this if the index seems corrupted
 
 ### What is it?
 
-Instead of remembering exact command syntax, you can now tell ISA what you want in plain English (or your natural language)! ISA uses AI to understand your intent and automatically executes the right command.
+Instead of remembering exact command syntax, you can now talk to your computer naturally! ISA uses AI to understand your intent and automatically executes the right command.
 
 ### How to Use
 
 ```bash
-computer do <what you want to do>
+computer <what you want in natural language>
+# Examples:
+computer show stats                      # Imperative
+computer are the services healthy        # Question
+computer search for deployment           # Natural phrase
 ```
 
 ### Examples
 
 #### Get Statistics
 ```bash
-computer do show me context stats
-computer do how many chunks do we have
-computer do show statistics
+computer show me context stats
+computer how many chunks do we have
+computer show statistics
 ```
 All of these run: `isa ctx-stats`
 
 #### Health Checks
 ```bash
-computer do check if everything is healthy
-computer do are services running
-computer do health check
-computer do check status
+computer are the services healthy
+computer is everything running
+computer check health
+computer check status
 ```
 All of these run: `isa ctx-health`
 
 #### Search Contexts
 ```bash
-computer do search for deployment
-computer do find information about priorities
-computer do look for helm setup
+computer search for deployment
+computer find information about priorities
+computer find helm setup
 ```
 These run: `isa ctx-search "<your query>"`
 
 #### Sync Contexts
 ```bash
-computer do sync all my contexts
-computer do update contexts
-computer do refresh the database
-computer do reindex everything
+computer sync all my contexts
+computer update the contexts
+computer refresh
+computer sync
 ```
 All of these run: `isa ctx-sync`
 
 #### Rebuild Index
 ```bash
-computer do rebuild the index
-computer do start over with the database
-computer do recreate everything
+computer rebuild the index
+computer start over with the database
+computer rebuild
 ```
 All of these run: `isa ctx-rebuild`
 
@@ -289,6 +293,7 @@ computer sync
 # In another terminal, stop it
 computer stop the previous command
 computer kill it
+computer kill that
 ```
 
 **Supported contextual actions:**
@@ -352,9 +357,9 @@ computer check health                   # Quick health check
 computer show stats                     # See stats
 computer ask "What should I work on?"   # AI guidance
 
-# Or with full phrases
-computer do check if everything is healthy
-computer do show me context stats
+# Or with natural questions
+computer are the services healthy
+computer show me the context stats
 ```
 
 ### After Adding New Context
@@ -430,15 +435,15 @@ isa ctx-health
 
 ISA now supports multiple ways to express the same command. Choose the style you prefer!
 
-| What You Want | Traditional | Imperative | Natural Language |
+| What You Want | Traditional | Imperative | Natural Question |
 |---------------|-------------|------------|------------------|
-| See stats | `isa ctx-stats` | `computer show stats` | `computer do show me context statistics` |
-| Health check | `isa ctx-health` | `computer check health` | `computer do are services running` |
-| Search | `isa ctx-search "x"` | `computer find x` | `computer do search for x` |
-| Sync contexts | `isa ctx-sync` | `computer sync` | `computer do update all contexts` |
-| Rebuild index | `isa ctx-rebuild` | `computer rebuild` | `computer do rebuild the database` |
-| Repeat last | N/A | `computer redo` | `computer do repeat the previous command` |
-| Stop process | N/A | `computer stop that` | `computer do stop the previous command` |
+| See stats | `isa ctx-stats` | `computer show stats` | `computer show me the stats` |
+| Health check | `isa ctx-health` | `computer check health` | `computer are the services healthy` |
+| Search | `isa ctx-search "x"` | `computer find x` | `computer search for x` |
+| Sync contexts | `isa ctx-sync` | `computer sync` | `computer sync all contexts` |
+| Rebuild index | `isa ctx-rebuild` | `computer rebuild` | `computer rebuild the database` |
+| Repeat last | N/A | `computer redo` | `computer do it again` |
+| Stop process | N/A | `computer stop that` | `computer stop the previous command` |
 
 **Pro tips:**
 - **Shorter is faster:** `computer show stats` beats the full phrase
