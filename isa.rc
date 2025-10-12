@@ -1,5 +1,6 @@
 #!/bin/zsh
 # ISA (Intelligent Support Assistant) Shell Configuration
+# Universal configuration - works on macOS and Linux
 # Source this file from your .zshrc or .bashrc
 # Location: ~/projects/isa/isa.rc
 # Last Updated: 2025-10-12
@@ -155,6 +156,76 @@ isa() {
                 echo "❌ AI integration not available. Load ollama-client module first."
             fi
             ;;
+        context-sync|ctx-sync)
+            echo "🔄 Processing contexts into vector database..."
+            local count=0
+            for file in $(find ${ISA_CONTEXTS} -name "*.md" -type f); do
+                echo "  Processing: ${file##*/}"
+                python3 ${ISA_ROOT}/tools/chunk_and_embed.py "$file" 2>/dev/null && ((count++))
+            done
+            echo "✅ Processed $count context files"
+            ;;
+        context-stats|ctx-stats)
+            echo "📊 Vector Database Statistics"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            curl -s http://192.168.1.161:8000/stats 2>/dev/null | python3 -c "import json, sys; data=json.load(sys.stdin); print(f'  Total Chunks: {data.get(\"total_chunks\", 0)}\n  Trained: {data.get(\"is_trained\", False)}\n  Storage: {data.get(\"storage_dir\", \"unknown\")}')" || echo "  ❌ Vector service not available"
+            ;;
+        context-search|ctx-search)
+            if [[ -z "$1" ]]; then
+                echo "Usage: isa context-search <query>"
+                echo "Example: isa context-search 'deployment procedures'"
+                return 1
+            fi
+            echo "🔍 Semantic Search: $@"
+            echo ""
+            python3 ${ISA_ROOT}/tools/semantic_context.py "$@" --format text 2>/dev/null || echo "❌ Semantic search failed"
+            ;;
+        context-rebuild|ctx-rebuild)
+            echo "🔨 Rebuilding vector database index..."
+            curl -s -X POST http://192.168.1.161:8000/rebuild 2>/dev/null | python3 -c "import json, sys; data=json.load(sys.stdin); print(f'✅ Rebuilt: {data.get(\"total_chunks\", 0)} chunks')" || echo "❌ Rebuild failed"
+            ;;
+        context-health|ctx-health)
+            echo "🏥 Checking semantic context services..."
+            echo ""
+            
+            # Check vector database
+            echo "Vector Database (192.168.1.161:8000):"
+            if curl -s http://192.168.1.161:8000/health 2>/dev/null | grep -q "healthy"; then
+                echo "  ✅ Healthy"
+            else
+                echo "  ❌ Unavailable"
+            fi
+            
+            # Check Ollama
+            echo ""
+            echo "Ollama AI (192.168.1.161:11434):"
+            if curl -s http://192.168.1.161:11434/api/tags 2>/dev/null | grep -q "models"; then
+                echo "  ✅ Healthy"
+            else
+                echo "  ❌ Unavailable"
+            fi
+            
+            # Check context watcher
+            echo ""
+            echo "Context Watcher (local):"
+            if ps aux | grep -v grep | grep -q "context_watcher.py"; then
+                echo "  ✅ Running"
+            else
+                echo "  ⚠️  Not running"
+            fi
+            ;;
+        context-add|ctx-add)
+            if [[ -z "$1" ]]; then
+                echo "Usage: isa context-add <markdown-file>"
+                return 1
+            fi
+            if [[ ! -f "$1" ]]; then
+                echo "❌ File not found: $1"
+                return 1
+            fi
+            echo "📝 Adding context to vector database..."
+            python3 ${ISA_ROOT}/tools/chunk_and_embed.py "$1" 2>/dev/null && echo "✅ Context added successfully" || echo "❌ Failed to add context"
+            ;;
         help|--help|-h)
             cat <<EOF
 ╔════════════════════════════════════════════════════════════════════╗
@@ -186,6 +257,16 @@ AI COMMANDS (with Ollama):
   suggest [project]   AI suggestions for project or priorities
   ai-status           Show AI integration status
 
+SEMANTIC CONTEXT COMMANDS:
+  context-sync        Sync all contexts to vector database
+  context-stats       Show vector database statistics
+  context-search      Semantic search across contexts
+  context-health      Check all semantic services
+  context-rebuild     Rebuild vector database index
+  context-add <file>  Add a context file to database
+  
+  Short aliases: ctx-sync, ctx-stats, ctx-search, ctx-health, ctx-rebuild, ctx-add
+
 ALIASES:
   isa-me              View priorities
   isa-urgent          Show urgent items
@@ -205,6 +286,11 @@ EXAMPLES:
   isa analyze urgent             # AI analysis of urgent items
   computer suggest current       # AI suggestions for current project
   isa ai-status                  # Check AI integration
+  
+  isa ctx-stats                  # Show vector database stats
+  isa ctx-search "deployment"     # Search contexts semantically
+  isa ctx-health                 # Check all services
+  isa ctx-sync                   # Sync all contexts to DB
 
 LOCATION:
   Root: ${ISA_ROOT}
