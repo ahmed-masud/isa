@@ -45,6 +45,21 @@ ollama_query() {
         return 1
     fi
     
+    # Use Python client (more reliable)
+    local python_client="${ISA_ROOT}/tools/ollama_client.py"
+    if [ -f "$python_client" ]; then
+        local model_arg=""
+        if [ -n "$model" ] && [ "$model" != "$AI_MODEL" ]; then
+            model_arg="--model $model"
+        fi
+        
+        python3 "$python_client" $model_arg "$prompt" 2>/dev/null
+        return $?
+    fi
+    
+    # Fallback to original curl method if Python client not available
+    echo -e "${YELLOW}Warning: Using fallback curl method${NC}" >&2
+    
     # Check if Ollama is available
     if ! ollama_health_check; then
         echo -e "${RED}Error: Cannot connect to Ollama at ${OLLAMA_HOST}${NC}" >&2
@@ -94,7 +109,25 @@ ollama_context_query() {
         return 1
     fi
     
-    # Build context-aware prompt
+    # Use Python client if available (supports context files natively)
+    local python_client="${ISA_ROOT}/tools/ollama_client.py"
+    if [ -f "$python_client" ]; then
+        local model_arg=""
+        local context_arg=""
+        
+        if [ -n "$model" ] && [ "$model" != "$AI_MODEL" ]; then
+            model_arg="--model $model"
+        fi
+        
+        if [ -n "$context_file" ] && [ -f "$context_file" ]; then
+            context_arg="--context-file $context_file"
+        fi
+        
+        python3 "$python_client" $model_arg $context_arg "$query" 2>/dev/null
+        return $?
+    fi
+    
+    # Fallback to building prompt manually
     local full_prompt
     if [ -n "$context_file" ] && [ -f "$context_file" ]; then
         local context_data
