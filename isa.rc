@@ -156,6 +156,17 @@ isa() {
                 echo "❌ AI integration not available. Load ollama-client module first."
             fi
             ;;
+        do)
+            # Natural language command interpretation
+            if [[ -z "$1" ]]; then
+                echo "Usage: computer do <natural language command>"
+                echo "Example: computer do show me context stats"
+                echo "Example: computer do search for deployment procedures"
+                return 1
+            fi
+            echo "🤖 Interpreting: $@"
+            python3 ${ISA_ROOT}/tools/command_intent.py "$@"
+            ;;
         context-sync|ctx-sync)
             echo "🔄 Processing contexts into vector database..."
             local count=0
@@ -256,6 +267,8 @@ AI COMMANDS (with Ollama):
   analyze [type]      AI analysis of context (urgent, me, current)
   suggest [project]   AI suggestions for project or priorities
   ai-status           Show AI integration status
+  do <command>        Natural language command interpretation
+                      (e.g., "computer do show me stats")
 
 SEMANTIC CONTEXT COMMANDS:
   context-sync        Sync all contexts to vector database
@@ -280,17 +293,21 @@ ALIASES:
   cdme                Navigate to your context directory
 
 EXAMPLES:
-  isa me                         # View your priorities
-  computer urgent                # Check urgent items  
-  computer ask "What's next?"     # Ask AI for guidance
-  isa analyze urgent             # AI analysis of urgent items
-  computer suggest current       # AI suggestions for current project
-  isa ai-status                  # Check AI integration
+  isa me                                    # View your priorities
+  computer urgent                           # Check urgent items  
+  computer ask "What's next?"                # Ask AI for guidance
+  isa analyze urgent                        # AI analysis of urgent items
+  computer suggest current                  # AI suggestions for current project
+  isa ai-status                             # Check AI integration
   
-  isa ctx-stats                  # Show vector database stats
-  isa ctx-search "deployment"     # Search contexts semantically
-  isa ctx-health                 # Check all services
-  isa ctx-sync                   # Sync all contexts to DB
+  computer do show me context stats         # Natural language → isa ctx-stats
+  computer do search for deployment         # Natural language → isa ctx-search
+  computer do check if services are healthy # Natural language → isa ctx-health
+  
+  isa ctx-stats                             # Show vector database stats
+  isa ctx-search "deployment"                # Search contexts semantically
+  isa ctx-health                            # Check all services
+  isa ctx-sync                              # Sync all contexts to DB
 
 LOCATION:
   Root: ${ISA_ROOT}

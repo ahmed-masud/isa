@@ -4,6 +4,20 @@
 
 ISA now provides high-level commands for managing the semantic context system without needing to use low-level Python scripts.
 
+### 🗣️ Natural Language Commands NEW!
+
+You can now use natural language to control ISA! Simply use `computer do` followed by what you want:
+
+```bash
+# These all work!
+computer do show me context stats
+computer do check if everything is healthy
+computer do search for deployment procedures
+computer do sync all my contexts
+```
+
+ISA will automatically understand your intent and execute the right command. See [Natural Language Commands](#natural-language-commands) section for more details.
+
 ## 📋 Available Commands
 
 ### Context Statistics
@@ -136,6 +150,102 @@ Rebuilds the entire vector database index. Use this if the index seems corrupted
 ```
 🔨 Rebuilding vector database index...
 ✅ Rebuilt: 237 chunks
+```
+
+---
+
+## 🗣️ Natural Language Commands
+
+### What is it?
+
+Instead of remembering exact command syntax, you can now tell ISA what you want in plain English (or your natural language)! ISA uses AI to understand your intent and automatically executes the right command.
+
+### How to Use
+
+```bash
+computer do <what you want to do>
+```
+
+### Examples
+
+#### Get Statistics
+```bash
+computer do show me context stats
+computer do how many chunks do we have
+computer do show statistics
+```
+All of these run: `isa ctx-stats`
+
+#### Health Checks
+```bash
+computer do check if everything is healthy
+computer do are services running
+computer do health check
+computer do check status
+```
+All of these run: `isa ctx-health`
+
+#### Search Contexts
+```bash
+computer do search for deployment
+computer do find information about priorities
+computer do look for helm setup
+```
+These run: `isa ctx-search "<your query>"`
+
+#### Sync Contexts
+```bash
+computer do sync all my contexts
+computer do update contexts
+computer do refresh the database
+computer do reindex everything
+```
+All of these run: `isa ctx-sync`
+
+#### Rebuild Index
+```bash
+computer do rebuild the index
+computer do start over with the database
+computer do recreate everything
+```
+All of these run: `isa ctx-rebuild`
+
+### How It Works
+
+1. **AI Interpretation** (when available): ISA uses Ollama AI to understand your natural language and determine the best command
+2. **Fallback Pattern Matching**: If AI is unavailable, ISA uses smart pattern matching to understand common phrases
+3. **Confidence Scoring**: ISA tells you how confident it is about the interpretation
+4. **Safe Execution**: Commands are validated before execution
+
+### Supported Patterns
+
+The system understands variations of:
+- "show", "display", "get", "check"
+- "search", "find", "look for", "locate"
+- "sync", "update", "refresh", "reindex"
+- "rebuild", "recreate", "start over"
+- "health", "status", "are things working"
+
+### Tips for Natural Language Commands
+
+1. **Be conversational**: "check if everything is healthy" works great
+2. **Include keywords**: Words like "search", "check", "show" help ISA understand
+3. **Be specific for search**: "search for deployment procedures" is better than "find stuff"
+4. **Try variations**: If one phrasing doesn't work, rephrase it
+
+### Testing Natural Language
+
+You can test what command ISA would execute without running it:
+
+```bash
+# Dry run mode - shows what would be executed
+python3 ~/projects/isa/tools/command_intent.py "show me stats" --dry-run
+
+# Verbose mode - shows interpretation process
+python3 ~/projects/isa/tools/command_intent.py "check health" --verbose
+
+# JSON output - for scripting
+python3 ~/projects/isa/tools/command_intent.py "sync contexts" --json
 ```
 
 ---
