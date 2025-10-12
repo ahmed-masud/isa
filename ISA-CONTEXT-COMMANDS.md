@@ -18,6 +18,20 @@ computer do sync all my contexts
 
 ISA will automatically understand your intent and execute the right command. See [Natural Language Commands](#natural-language-commands) section for more details.
 
+### ⚡ Quick Imperative Commands NEW!
+
+Even faster! Use direct imperative verbs without "do":
+
+```bash
+computer show stats       # Same as: isa ctx-stats
+computer check health     # Same as: isa ctx-health  
+computer search helm      # Same as: isa ctx-search "helm"
+computer sync             # Same as: isa ctx-sync
+computer rebuild          # Same as: isa ctx-rebuild
+```
+
+Just tell the computer what to do - no extra words needed!
+
 ## 📋 Available Commands
 
 ### Context Statistics
@@ -250,6 +264,51 @@ python3 ~/projects/isa/tools/command_intent.py "sync contexts" --json
 
 ---
 
+## 📜 Contextual Commands (History-Aware)
+
+ISA now tracks command history and supports contextual references!
+
+### Repeat Previous Commands
+
+```bash
+# Run a command
+computer show stats
+
+# Repeat it
+computer repeat last
+computer do it again
+computer redo
+```
+
+### Process Control (for long-running commands)
+
+```bash
+# Start a sync
+computer sync
+
+# In another terminal, stop it
+computer stop the previous command
+computer kill it
+```
+
+**Supported contextual actions:**
+- **repeat/redo/again**: Re-execute the previous command
+- **stop/halt**: Gracefully terminate the previous command (SIGTERM)
+- **kill/terminate**: Forcefully kill the previous command (SIGKILL)
+
+**Supported references:**
+- **previous/last**: Refers to the most recent command
+- **it/that**: Refers to the most recent command
+
+### How It Works
+
+1. ISA tracks all commands you execute through the natural language interface
+2. Command history is stored in `~/.config/isa/.command_history.json`
+3. Each command stores its PID (process ID) for process control
+4. History is limited to the last 100 commands
+
+---
+
 ## 🔗 Integration with AI Commands
 
 The semantic context system works automatically with existing AI commands:
@@ -278,12 +337,24 @@ When semantic context is available, you'll see:
 
 ## 💡 Common Workflows
 
-### Daily Use
+### Daily Use (Traditional)
 ```bash
 # Morning check
 isa ctx-health                          # Ensure services are running
 isa ctx-stats                           # See current context state
 computer ask "What are my priorities?"  # AI uses semantic context
+```
+
+### Daily Use (Natural Language)
+```bash
+# Morning check - imperative style
+computer check health                   # Quick health check
+computer show stats                     # See stats
+computer ask "What should I work on?"   # AI guidance
+
+# Or with full phrases
+computer do check if everything is healthy
+computer do show me context stats
 ```
 
 ### After Adding New Context
@@ -352,6 +423,28 @@ isa ctx-search "query"
 # Health check
 isa ctx-health
 ```
+
+---
+
+## 🎯 Command Style Comparison
+
+ISA now supports multiple ways to express the same command. Choose the style you prefer!
+
+| What You Want | Traditional | Imperative | Natural Language |
+|---------------|-------------|------------|------------------|
+| See stats | `isa ctx-stats` | `computer show stats` | `computer do show me context statistics` |
+| Health check | `isa ctx-health` | `computer check health` | `computer do are services running` |
+| Search | `isa ctx-search "x"` | `computer find x` | `computer do search for x` |
+| Sync contexts | `isa ctx-sync` | `computer sync` | `computer do update all contexts` |
+| Rebuild index | `isa ctx-rebuild` | `computer rebuild` | `computer do rebuild the database` |
+| Repeat last | N/A | `computer redo` | `computer do repeat the previous command` |
+| Stop process | N/A | `computer stop that` | `computer do stop the previous command` |
+
+**Pro tips:**
+- **Shorter is faster:** `computer show stats` beats the full phrase
+- **Be consistent:** Pick a style and stick with it
+- **Mix and match:** Use traditional for scripts, imperative for interactive use
+- **Let AI help:** When unsure, try natural language - ISA will figure it out
 
 ---
 

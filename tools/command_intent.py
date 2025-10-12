@@ -2,6 +2,7 @@
 """
 Command Intent Mapper for ISA
 Translates natural language commands into executable ISA commands using Ollama AI.
+Supports imperative commands and contextual references.
 """
 
 import os
@@ -9,6 +10,9 @@ import sys
 import json
 import subprocess
 import argparse
+import re
+import signal
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 # Add parent directory to path for imports
@@ -21,8 +25,106 @@ except ImportError as e:
     OllamaClient = None
 
 
+class CommandHistory:
+    """Tracks command execution history for contextual references."""
+    
+    def __init__(self, history_file: str = None):
+        """Initialize command history."""
+        if history_file is None:
+            isa_config = os.environ.get('ISA_CONFIG', os.path.expanduser('~/.config/isa'))
+            history_file = os.path.join(isa_config, '.command_history.json')
+        
+        self.history_file = history_file
+        self.history = self._load_history()
+    
+    def _load_history(self) -> List[Dict]:
+        """Load command history from file."""
+        if not os.path.exists(self.history_file):
+            return []
+        
+        try:
+            with open(self.history_file, 'r') as f:
+                return json.load(f)
+        except Exception:
+            return []
+    
+    def _save_history(self):
+        """Save command history to file."""
+        try:
+            os.makedirs(os.path.dirname(self.history_file), exist_ok=True)
+            with open(self.history_file, 'w') as f:
+                json.dump(self.history[-100:], f, indent=2)  # Keep last 100 commands
+        except Exception as e:
+            print(f"Warning: Could not save history: {e}", file=sys.stderr)
+    
+    def add(self, command: str, args: List[str], pid: int = None):
+        """Add a command to history."""
+        import time
+        entry = {
+            'timestamp': time.time(),
+            'command': command,
+            'args': args,
+            'pid': pid
+        }
+        self.history.append(entry)
+        self._save_history()
+    
+    def get_last(self, n: int = 1) -> Optional[Dict]:
+        """Get the last n commands."""
+        if len(self.history) < n:
+            return None
+        return self.history[-n]
+    
+    def get_previous(self) -> Optional[Dict]:
+        """Get the previous command."""
+        return self.get_last(1)
+
+
 class CommandIntentMapper:
     """Maps natural language to ISA commands using AI."""
+    
+    # Imperative verb mappings for direct commands
+    # Format: verb -> (command, requires_arg)
+    IMPERATIVE_VERBS = {
+        'show': ('ctx-stats', False),
+        'display': ('ctx-stats', False),
+        'check': ('ctx-health', False),
+        'verify': ('ctx-health', False),
+        'search': ('ctx-search', True),
+        'find': ('ctx-search', True),
+        'locate': ('ctx-search', True),
+        'sync': ('ctx-sync', False),
+        'update': ('ctx-sync', False),
+        'refresh': ('ctx-sync', False),
+        'rebuild': ('ctx-rebuild', False),
+        'recreate': ('ctx-rebuild', False),
+        'add': ('ctx-add', True),
+        'index': ('ctx-add', True),
+    }
+    
+    # Object/noun mappings to refine imperative commands
+    OBJECT_REFINEMENTS = {
+        'stats': 'ctx-stats',
+        'statistics': 'ctx-stats',
+        'status': 'ctx-health',
+        'health': 'ctx-health',
+        'contexts': 'ctx-sync',
+        'database': 'ctx-rebuild',
+        'index': 'ctx-rebuild',
+    }
+    
+    # Contextual commands that reference history
+    CONTEXTUAL_COMMANDS = {
+        'stop': 'stop_process',
+        'kill': 'kill_process',
+        'halt': 'stop_process',
+        'terminate': 'kill_process',
+        'pause': 'pause_process',
+        'resume': 'resume_process',
+        'repeat': 'repeat_command',
+        'redo': 'repeat_command',
+        'again': 'repeat_command',
+    }
     
     # Define known ISA commands and their patterns
     COMMAND_PATTERNS = {
@@ -112,6 +214,7 @@ class CommandIntentMapper:
         """Initialize the command intent mapper."""
         self.verbose = verbose
         self.ollama_client = None
+        self.history = CommandHistory()
         
         if OllamaClient:
             try:
@@ -124,6 +227,106 @@ class CommandIntentMapper:
             except Exception as e:
                 if self.verbose:
                     print(f"⚠️  Could not connect to Ollama: {e}", file=sys.stderr)
+    
+    def _parse_imperative(self, user_input: str) -> Optional[Dict]:
+        """
+        Parse imperative commands like 'show stats', 'check health'.
+        Returns parsed command or None if not an imperative.
+        """
+        words = user_input.lower().strip().split()
+        if len(words) == 0:
+            return None
+        
+        # Try verb + object pattern (e.g., "show stats", "check health")
+        if len(words) >= 2:
+            verb = words[0]
+            obj = ' '.join(words[1:])
+            
+            # Check if object directly maps to a command
+            for keyword in self.OBJECT_REFINEMENTS:
+                if keyword in obj:
+                    return {
+                        'command': f"isa {self.OBJECT_REFINEMENTS[keyword]}",
+                        'args': [],
+                        'confidence': 0.85,
+                        'reasoning': f"Imperative: {verb} {keyword}"
+                    }
+            
+            # Check if verb maps to a command
+            if verb in self.IMPERATIVE_VERBS:
+                cmd, requires_arg = self.IMPERATIVE_VERBS[verb]
+                if requires_arg:
+                    # Rest of the words are the argument
+                    arg = ' '.join(words[1:])
+                    return {
+                        'command': f"isa {cmd}",
+                        'args': [arg] if arg else [],
+                        'confidence': 0.8,
+                        'reasoning': f"Imperative verb: {verb}"
+                    }
+                else:
+                    return {
+                        'command': f"isa {cmd}",
+                        'args': [],
+                        'confidence': 0.8,
+                        'reasoning': f"Imperative verb: {verb}"
+                    }
+        
+        # Single verb (e.g., "sync", "rebuild")
+        if len(words) == 1:
+            verb = words[0]
+            if verb in self.IMPERATIVE_VERBS:
+                cmd, requires_arg = self.IMPERATIVE_VERBS[verb]
+                if not requires_arg:
+                    return {
+                        'command': f"isa {cmd}",
+                        'args': [],
+                        'confidence': 0.75,
+                        'reasoning': f"Single imperative: {verb}"
+                    }
+        
+        return None
+    
+    def _parse_contextual(self, user_input: str) -> Optional[Dict]:
+        """
+        Parse contextual commands that reference history.
+        E.g., 'stop the previous command', 'repeat last', 'kill it'.
+        """
+        words = user_input.lower().strip().split()
+        if len(words) == 0:
+            return None
+        
+        # Check for contextual action verbs
+        action = None
+        for word in words:
+            if word in self.CONTEXTUAL_COMMANDS:
+                action = self.CONTEXTUAL_COMMANDS[word]
+                break
+        
+        if not action:
+            return None
+        
+        # Determine which command to act on
+        target_cmd = None
+        
+        # Look for references to previous/last/it
+        if any(ref in words for ref in ['previous', 'last', 'it', 'that']):
+            target_cmd = self.history.get_previous()
+        
+        if target_cmd is None:
+            return {
+                'command': None,
+                'args': [],
+                'confidence': 0.0,
+                'reasoning': f"Contextual action '{action}' but no command in history"
+            }
+        
+        return {
+            'command': action,
+            'args': [json.dumps(target_cmd)],
+            'confidence': 0.9,
+            'reasoning': f"Contextual: {action} on previous command"
+        }
     
     def _get_command_context(self) -> str:
         """Generate context about available ISA commands for the AI."""
@@ -191,6 +394,17 @@ Now analyze the user's request and respond with JSON only."""
         Returns:
             Dict with keys: command, args, confidence, reasoning
         """
+        # First, try contextual commands (highest priority)
+        contextual = self._parse_contextual(user_input)
+        if contextual and contextual.get('command'):
+            return contextual
+        
+        # Second, try imperative commands
+        imperative = self._parse_imperative(user_input)
+        if imperative:
+            return imperative
+        
+        # Third, try AI interpretation if available
         if not self.ollama_client:
             # Fallback to simple pattern matching if Ollama unavailable
             return self._fallback_interpret(user_input)
@@ -272,6 +486,43 @@ Now analyze the user's request and respond with JSON only."""
             'reasoning': 'No matching command pattern found'
         }
     
+    def _handle_contextual_action(self, action: str, target_cmd_json: str) -> Tuple[int, str, str]:
+        """
+        Handle contextual actions like stop, kill, repeat.
+        """
+        try:
+            target_cmd = json.loads(target_cmd_json)
+        except:
+            return 1, "", "Could not parse target command"
+        
+        if action == 'stop_process' or action == 'kill_process':
+            pid = target_cmd.get('pid')
+            if not pid:
+                return 1, "", "Previous command has no PID to stop"
+            
+            try:
+                sig = signal.SIGTERM if action == 'stop_process' else signal.SIGKILL
+                os.kill(pid, sig)
+                action_name = "Stopped" if action == 'stop_process' else "Killed"
+                return 0, f"{action_name} process {pid}", ""
+            except ProcessLookupError:
+                return 1, "", f"Process {pid} not found (may have already exited)"
+            except PermissionError:
+                return 1, "", f"Permission denied to stop process {pid}"
+            except Exception as e:
+                return 1, "", f"Error stopping process: {e}"
+        
+        elif action == 'repeat_command':
+            cmd = target_cmd.get('command')
+            args = target_cmd.get('args', [])
+            if not cmd:
+                return 1, "", "No command to repeat"
+            print(f"🔁 Repeating: {cmd} {' '.join(args)}", file=sys.stderr)
+            return self.execute_command(cmd, args, dry_run=False)
+        
+        else:
+            return 1, "", f"Unknown contextual action: {action}"
+    
     def execute_command(self, command: str, args: List[str], dry_run: bool = False) -> Tuple[int, str, str]:
         """
         Execute an ISA command safely.
@@ -281,6 +532,15 @@ Now analyze the user's request and respond with JSON only."""
         """
         if not command:
             return 1, "", "No command to execute"
+        
+        # Handle contextual actions
+        if command in ['stop_process', 'kill_process', 'repeat_command']:
+            if dry_run:
+                return 0, f"Would execute contextual action: {command}", ""
+            if len(args) > 0:
+                return self._handle_contextual_action(command, args[0])
+            else:
+                return 1, "", "Contextual action requires target command info"
         
         # Build full command string
         cmd_parts = [command] + args
@@ -297,19 +557,26 @@ Now analyze the user's request and respond with JSON only."""
             # Source isa.rc first to get access to the isa function
             shell_cmd = f"source {isa_root}/isa.rc > /dev/null 2>&1 && {cmd_str}"
             
-            result = subprocess.run(
+            result = subprocess.Popen(
                 shell_cmd,
                 shell=True,
-                executable='/bin/zsh',  # Use zsh as it's the user's shell
-                capture_output=True,
-                text=True,
-                timeout=30
+                executable='/bin/zsh',
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
             )
             
-            return result.returncode, result.stdout, result.stderr
+            # Add to history with PID
+            self.history.add(command, args, result.pid)
             
-        except subprocess.TimeoutExpired:
-            return 1, "", "Command timed out after 30 seconds"
+            # Wait for completion
+            try:
+                stdout, stderr = result.communicate(timeout=30)
+                return result.returncode, stdout, stderr
+            except subprocess.TimeoutExpired:
+                result.kill()
+                return 1, "", "Command timed out after 30 seconds"
+            
         except Exception as e:
             return 1, "", f"Execution error: {e}"
 

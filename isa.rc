@@ -325,9 +325,30 @@ EOF
     esac
 }
 
-# Computer alias - same as isa command but more natural
+# Computer function - handles both ISA commands and natural language
 computer() {
-    isa "$@"
+    local first_arg="${1:-}"
+    
+    # Check if it's a direct ISA command first
+    case "${first_arg}" in
+        me|urgent|week|month|todo|edit|status|help|load|contexts|list|search|update|\
+        ask|analyze|suggest|ai-status|\
+        context-sync|ctx-sync|context-stats|ctx-stats|context-search|ctx-search|\
+        context-health|ctx-health|context-rebuild|ctx-rebuild|context-add|ctx-add|do)
+            # Known ISA command, pass through
+            isa "$@"
+            ;;
+        *)
+            # Not a known ISA command - try natural language interpretation
+            if [[ -n "${first_arg}" ]]; then
+                echo "🤖 Interpreting: $@"
+                python3 ${ISA_ROOT}/tools/command_intent.py "$@"
+            else
+                # No arguments - show help
+                isa help
+            fi
+            ;;
+    esac
 }
 
 # Quick context loader with tab completion
