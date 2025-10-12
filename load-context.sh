@@ -1,11 +1,11 @@
 #!/bin/bash
-# vdev Context Loader
+# ISA Context Loader
 # Usage: ./load-context.sh <context-name>
 # Example: ./load-context.sh ahmed-masud
 
 CONTEXT_NAME="${1:-ahmed-masud}"
-VDEV_ROOT="${VDEV_ROOT:-$HOME/projects/vibe-dev}"
-CONTEXT_DIR="${VDEV_CONTEXTS:-$HOME/vibe-dev/contexts}"
+ISA_ROOT="${ISA_ROOT:-$HOME/projects/isa}"
+CONTEXT_DIR="${ISA_CONTEXTS:-$HOME/.config/isa/contexts}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -95,7 +95,7 @@ echo "  # Edit context"
 echo "  \$EDITOR $CONTEXT_PATH/README.md"
 echo ""
 echo "  # View all TODOs"
-echo "  cat $VDEV_ROOT/TODO.md"
+echo "  cat $ISA_ROOT/TODO.md"
 echo ""
 
 # Check for project links in priorities
