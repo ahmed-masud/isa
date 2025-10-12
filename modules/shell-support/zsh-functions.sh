@@ -33,12 +33,12 @@ ollama_query() {
     # Use Python client (more reliable)
     local python_client="${ISA_ROOT}/tools/ollama_client.py"
     if [ -f "$python_client" ]; then
-        local model_arg=""
+        local cmd_args=()
         if [ -n "$model" ] && [ "$model" != "$AI_MODEL" ]; then
-            model_arg="--model $model"
+            cmd_args+=("--model" "$model")
         fi
         
-        python3 "$python_client" $model_arg "$prompt" 2>/dev/null
+        python3 "$python_client" "${cmd_args[@]}" "$prompt" 2>/dev/null
         return $?
     fi
     
@@ -97,18 +97,17 @@ ollama_context_query() {
     # Use Python client if available (supports context files natively)
     local python_client="${ISA_ROOT}/tools/ollama_client.py"
     if [ -f "$python_client" ]; then
-        local model_arg=""
-        local context_arg=""
+        local cmd_args=()
         
         if [ -n "$model" ] && [ "$model" != "$AI_MODEL" ]; then
-            model_arg="--model $model"
+            cmd_args+=("--model" "$model")
         fi
         
         if [ -n "$context_file" ] && [ -f "$context_file" ]; then
-            context_arg="--context-file $context_file"
+            cmd_args+=("--context-file" "$context_file")
         fi
         
-        python3 "$python_client" $model_arg $context_arg "$query" 2>/dev/null
+        python3 "$python_client" "${cmd_args[@]}" "$query" 2>/dev/null
         return $?
     fi
     
