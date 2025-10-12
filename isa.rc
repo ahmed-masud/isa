@@ -176,9 +176,11 @@ isa() {
                 echo "Example: isa context-search 'deployment procedures'"
                 return 1
             fi
-            echo "🔍 Semantic Search: $@"
+            # Join all arguments into a single quoted query
+            local query="$*"
+            echo "🔍 Semantic Search: $query"
             echo ""
-            python3 ${ISA_ROOT}/tools/semantic_context.py "$@" --format text 2>/dev/null || echo "❌ Semantic search failed"
+            python3 ${ISA_ROOT}/tools/semantic_context.py "$query" --format text
             ;;
         context-rebuild|ctx-rebuild)
             echo "🔨 Rebuilding vector database index..."
