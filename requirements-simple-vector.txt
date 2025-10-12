@@ -1,0 +1,9 @@
+# Simple Vector Database Service Requirements
+# Minimal dependencies to avoid compatibility issues
+
+fastapi>=0.68.0
+uvicorn[standard]>=0.15.0
+pydantic>=1.8.0
+scikit-learn>=1.0.0
+numpy>=1.20.0
+requests>=2.25.0

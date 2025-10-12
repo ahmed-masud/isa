@@ -1,0 +1,26 @@
+# ISA Vector Database Requirements
+# Install with: pip install -r requirements-vector.txt
+
+# Core vector database and embeddings
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+
+# Web API framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+
+# HTTP client for communication
+requests>=2.31.0
+
+# File system monitoring (for context watching)
+watchdog>=3.0.0
+
+# Optional: Better performance with GPU support
+# torch>=2.0.0  # Uncomment for GPU acceleration
+# transformers>=4.30.0  # Additional transformer models
+
+# Development and testing (optional)
+# pytest>=7.4.0
+# black>=23.0.0
+# flake8>=6.0.0
