@@ -11,19 +11,46 @@ import argparse
 from typing import Optional, Dict, Any
 import os
 
+# Try to import semantic context retrieval
+try:
+    from semantic_context import SemanticContextRetriever
+    SEMANTIC_CONTEXT_AVAILABLE = True
+except ImportError:
+    SEMANTIC_CONTEXT_AVAILABLE = False
+    print("Warning: Semantic context retrieval not available", file=sys.stderr)
+
 # Configuration - matches the shell script defaults
 DEFAULT_HOST = "http://192.168.1.161:11434"
 DEFAULT_MODEL = "phi3:mini"
 DEFAULT_TIMEOUT = 30
 DEFAULT_MAX_TOKENS = 1000
+DEFAULT_VECTOR_SERVICE = "http://192.168.1.161:8000"
 
 
 class OllamaClient:
-    def __init__(self, host: str = None, model: str = None, timeout: int = None):
+    def __init__(self, host: str = None, model: str = None, timeout: int = None, 
+                 vector_service_url: str = None, enable_semantic_context: bool = True):
         # Use environment variables or defaults
         self.host = host or os.environ.get('OLLAMA_HOST', DEFAULT_HOST)
         self.model = model or os.environ.get('AI_MODEL', DEFAULT_MODEL)
         self.timeout = timeout or int(os.environ.get('AI_TIMEOUT', DEFAULT_TIMEOUT))
+        
+        # Semantic context configuration
+        self.vector_service_url = vector_service_url or os.environ.get('VECTOR_SERVICE_URL', DEFAULT_VECTOR_SERVICE)
+        self.enable_semantic_context = enable_semantic_context and SEMANTIC_CONTEXT_AVAILABLE
+        
+        # Initialize semantic retriever if available
+        self.semantic_retriever = None
+        if self.enable_semantic_context:
+            try:
+                self.semantic_retriever = SemanticContextRetriever(self.vector_service_url)
+                # Test connection
+                if not self.semantic_retriever.test_connection():
+                    print(f"Warning: Cannot connect to vector service at {self.vector_service_url}", file=sys.stderr)
+                    self.enable_semantic_context = False
+            except Exception as e:
+                print(f"Warning: Failed to initialize semantic context: {e}", file=sys.stderr)
+                self.enable_semantic_context = False
         
         # Ensure host has proper format
         if not self.host.startswith('http'):
@@ -87,7 +114,7 @@ class OllamaClient:
             raise ValueError(f"Invalid JSON response: {e}")
     
     def context_query(self, query: str, context_file: str = None, model: str = None) -> Optional[str]:
-        """Query with context from a file"""
+        """Query with context from a file (legacy method)"""
         if not query:
             raise ValueError("No query provided")
         
@@ -113,6 +140,51 @@ Please provide a helpful response based on the context provided."""
                 pass
         
         return self.query(full_prompt, model)
+    
+    def semantic_query(self, query: str, context_type: str = None, model: str = None, 
+                      max_context_length: int = 2000) -> Optional[str]:
+        """Query with semantic context retrieval from vector database"""
+        if not query:
+            raise ValueError("No query provided")
+        
+        # Use semantic context if available
+        if self.enable_semantic_context and self.semantic_retriever:
+            try:
+                enhanced_prompt = self.semantic_retriever.build_enhanced_prompt(
+                    user_query=query,
+                    context_type=context_type,
+                    max_context_length=max_context_length
+                )
+                return self.query(enhanced_prompt, model)
+            except Exception as e:
+                print(f"Warning: Semantic context retrieval failed: {e}", file=sys.stderr)
+                # Fall back to basic query
+                return self.query(query, model)
+        else:
+            # Fall back to basic query if semantic context is not available
+            return self.query(query, model)
+    
+    def smart_query(self, query: str, context_type: str = None, context_file: str = None, 
+                   model: str = None, prefer_semantic: bool = True) -> Optional[str]:
+        """Intelligent query that chooses best context method available"""
+        if not query:
+            raise ValueError("No query provided")
+        
+        # Prefer semantic context if available and requested
+        if prefer_semantic and self.enable_semantic_context:
+            return self.semantic_query(query, context_type, model)
+        
+        # Fall back to file context if available
+        elif context_file:
+            return self.context_query(query, context_file, model)
+        
+        # Try semantic as fallback if file context not available
+        elif self.enable_semantic_context:
+            return self.semantic_query(query, context_type, model)
+        
+        # Final fallback to basic query
+        else:
+            return self.query(query, model)
 
 
 def main():
@@ -121,15 +193,26 @@ def main():
     parser.add_argument('--model', help='Model to use (default: phi3:mini)')
     parser.add_argument('--host', help='Ollama host URL (default: http://192.168.1.161:11434)')
     parser.add_argument('--timeout', type=int, help='Request timeout in seconds (default: 30)')
-    parser.add_argument('--context-file', help='File to use as context')
+    parser.add_argument('--context-file', help='File to use as context (legacy method)')
+    parser.add_argument('--context-type', help='Semantic context type filter (person, project, priorities, etc.)')
+    parser.add_argument('--vector-service', help='Vector service URL (default: http://192.168.1.161:8000)')
+    parser.add_argument('--disable-semantic', action='store_true', help='Disable semantic context retrieval')
+    parser.add_argument('--semantic-only', action='store_true', help='Use only semantic context (no file fallback)')
     parser.add_argument('--health-check', action='store_true', help='Check Ollama health')
     parser.add_argument('--list-models', action='store_true', help='List available models')
+    parser.add_argument('--test-semantic', action='store_true', help='Test semantic context service')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
     
     args = parser.parse_args()
     
     # Create client
-    client = OllamaClient(host=args.host, model=args.model, timeout=args.timeout)
+    client = OllamaClient(
+        host=args.host, 
+        model=args.model, 
+        timeout=args.timeout,
+        vector_service_url=args.vector_service,
+        enable_semantic_context=not args.disable_semantic
+    )
     
     try:
         if args.health_check:
@@ -149,13 +232,37 @@ def main():
                 print("No models available")
             sys.exit(0)
         
+        if args.test_semantic:
+            if client.enable_semantic_context:
+                print("✅ Semantic context service is available")
+                # Test with a simple query
+                stats = client.semantic_retriever.get_service_stats()
+                print(f"📊 Vector database stats: {stats}")
+            else:
+                print("❌ Semantic context service is not available")
+            sys.exit(0)
+        
         # Main query
         if not args.prompt:
             parser.error('Prompt is required for query operations')
         
-        if args.context_file:
+        # Choose query method based on arguments
+        if args.semantic_only:
+            # Force semantic query only
+            response = client.semantic_query(args.prompt, args.context_type)
+        elif args.context_file and args.disable_semantic:
+            # Force file context only
             response = client.context_query(args.prompt, args.context_file)
+        elif args.context_file or client.enable_semantic_context:
+            # Smart query with both options available
+            response = client.smart_query(
+                query=args.prompt,
+                context_type=args.context_type,
+                context_file=args.context_file,
+                prefer_semantic=not args.disable_semantic
+            )
         else:
+            # Basic query without context
             response = client.query(args.prompt)
         
         if response:
