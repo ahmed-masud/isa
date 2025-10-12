@@ -199,7 +199,35 @@ isa_ai_analyze() {
 
 # Suggest next actions based on context
 isa_ai_suggest() {
-    local project="${1:-current}"
+    local project="current"
+    
+    # Parse arguments to support both --project=value and positional args
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --project=*)
+                project="${1#--project=}"
+                shift
+                ;;
+            --project)
+                if [[ -n $2 && $2 != --* ]]; then
+                    project="$2"
+                    shift 2
+                else
+                    echo -e "${RED}Error: --project requires a value${NC}" >&2
+                    return 1
+                fi
+                ;;
+            -*)
+                echo -e "${RED}Error: Unknown flag $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                # Positional argument (backward compatibility)
+                project="$1"
+                shift
+                ;;
+        esac
+    done
     
     echo -e "${BLUE}💡 Getting AI suggestions for: $project${NC}"
     echo ""
