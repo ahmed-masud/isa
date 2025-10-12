@@ -1,2 +1,6 @@
 chroma_db/
 tools/__pycache__/
+
+# Context watcher runtime files
+.context_hashes.json
+context_watcher.log
