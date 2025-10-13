@@ -21,7 +21,7 @@ except ImportError:
 
 # Configuration - matches the shell script defaults
 DEFAULT_HOST = "http://192.168.1.161:11434"
-DEFAULT_MODEL = "phi3:mini"
+DEFAULT_MODEL = "llama3"
 DEFAULT_TIMEOUT = 30
 DEFAULT_MAX_TOKENS = 1000
 DEFAULT_VECTOR_SERVICE = "http://192.168.1.161:8000"
@@ -164,11 +164,122 @@ Please provide a helpful response based on the context provided."""
             # Fall back to basic query if semantic context is not available
             return self.query(query, model)
     
+    def _detect_system_query(self, query: str) -> Optional[str]:
+        """Detect system queries that don't need semantic context"""
+        import subprocess
+        import os
+        query_lower = query.lower().strip()
+        
+        def run_command(cmd, description=""):
+            """Helper to run system commands safely"""
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, shell=True)
+                if result.returncode == 0:
+                    return result.stdout.strip()
+                else:
+                    return f"{description}Command failed: {result.stderr.strip()}"
+            except Exception as e:
+                return f"{description}Error: {str(e)}"
+        
+        # Time/date queries
+        time_patterns = [
+            'what time is it', 'current time', 'what is the time', 'time now',
+            'what is the current time', 'what is the current system time',
+            'system time', 'current system time', 'time', 'date'
+        ]
+        
+        for pattern in time_patterns:
+            if pattern in query_lower:
+                result = run_command("date '+%A, %B %d, %Y at %I:%M:%S %p %Z'", "")
+                return f"Current system time: {result}"
+        
+        # File system queries
+        if any(phrase in query_lower for phrase in ['where am i', 'current directory', 'pwd', 'working directory']):
+            result = run_command("pwd", "")
+            return f"Current directory: {result}"
+        
+        if any(phrase in query_lower for phrase in ['list files', 'show files', 'what files', 'ls']):
+            if 'hidden' in query_lower or 'all' in query_lower:
+                result = run_command("ls -la", "")
+            else:
+                result = run_command("ls -l", "")
+            return f"Directory contents:\n{result}"
+        
+        # System info queries
+        if any(phrase in query_lower for phrase in ['who am i', 'current user', 'username', 'whoami']):
+            result = run_command("whoami", "")
+            return f"Current user: {result}"
+        
+        if any(phrase in query_lower for phrase in ['system info', 'uname', 'os version', 'operating system']):
+            result = run_command("uname -a", "")
+            return f"System information: {result}"
+        
+        if any(phrase in query_lower for phrase in ['uptime', 'how long', 'system uptime']):
+            result = run_command("uptime", "")
+            return f"System uptime: {result}"
+        
+        if any(phrase in query_lower for phrase in ['disk space', 'storage', 'df', 'free space']):
+            result = run_command("df -h .", "")
+            return f"Disk usage for current directory:\n{result}"
+        
+        if any(phrase in query_lower for phrase in ['memory', 'ram', 'free memory']):
+            # macOS doesn't have 'free', use vm_stat instead
+            result = run_command("vm_stat | head -10", "")
+            return f"Memory statistics:\n{result}"
+        
+        # Process queries - make more specific to avoid false matches
+        process_phrases = ['running processes', 'what processes', 'list processes', 'show processes']
+        # Only match standalone 'ps' command, not as part of other words like 'push'
+        if any(phrase in query_lower for phrase in process_phrases) or query_lower.strip() == 'ps':
+            result = run_command("ps aux | head -20", "")
+            return f"Running processes (top 20):\n{result}"
+        
+        # Network queries
+        if any(phrase in query_lower for phrase in ['ip address', 'my ip', 'network']):
+            result = run_command("ifconfig | grep 'inet ' | grep -v 127.0.0.1 | head -3", "")
+            return f"Network interfaces:\n{result}"
+        
+        # Environment queries
+        if any(phrase in query_lower for phrase in ['environment variables', 'env vars', 'path']):
+            if 'path' in query_lower:
+                result = run_command("echo $PATH", "")
+                return f"PATH environment variable:\n{result.replace(':', '\n')}"
+            else:
+                result = run_command("env | head -10", "")
+                return f"Environment variables (first 10):\n{result}"
+        
+        # Git queries (if we're in a git repo)
+        if any(phrase in query_lower for phrase in ['git status', 'repo status', 'git branch']):
+            if os.path.exists('.git') or run_command("git rev-parse --git-dir 2>/dev/null"):
+                if 'branch' in query_lower:
+                    result = run_command("git branch --show-current", "")
+                    return f"Current git branch: {result}"
+                else:
+                    result = run_command("git status --porcelain", "")
+                    if result:
+                        return f"Git status (modified files):\n{result}"
+                    else:
+                        return "Git status: Working directory is clean"
+        
+        # Shell/terminal info
+        if any(phrase in query_lower for phrase in ['what shell', 'shell version', 'terminal']):
+            shell_name = os.environ.get('SHELL', 'unknown')
+            result = run_command(f"$SHELL --version 2>/dev/null || echo {shell_name}", "")
+            return f"Shell information: {result}"
+        
+        # Don't intercept other queries - let semantic context handle them
+        return None
+    
     def smart_query(self, query: str, context_type: str = None, context_file: str = None, 
                    model: str = None, prefer_semantic: bool = True) -> Optional[str]:
         """Intelligent query that chooses best context method available"""
         if not query:
             raise ValueError("No query provided")
+        
+        # Check for simple system queries first (lightweight intent detection)
+        system_response = self._detect_system_query(query)
+        if system_response:
+            return system_response
         
         # Prefer semantic context if available and requested
         if prefer_semantic and self.enable_semantic_context:

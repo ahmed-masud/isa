@@ -86,8 +86,9 @@ class CommandIntentMapper:
     # Imperative verb mappings for direct commands
     # Format: verb -> (command, requires_arg)
     IMPERATIVE_VERBS = {
-        'show': ('ctx-stats', False),
-        'display': ('ctx-stats', False),
+        'show': ('me', False),  # Default to showing personal priorities
+        'display': ('me', False),
+        'list': ('me', False),
         'check': ('ctx-health', False),
         'verify': ('ctx-health', False),
         'search': ('ctx-search', True),
@@ -104,10 +105,28 @@ class CommandIntentMapper:
     
     # Object/noun mappings to refine imperative commands
     OBJECT_REFINEMENTS = {
+        # Stats and status
         'stats': 'ctx-stats',
         'statistics': 'ctx-stats',
-        'status': 'ctx-health',
+        'status': 'status',
         'health': 'ctx-health',
+        'dashboard': 'status',
+        
+        # Personal workflow
+        'priorities': 'me',
+        'priority': 'me', 
+        'tasks': 'me',
+        'urgent': 'urgent',
+        'urgent priorities': 'urgent',
+        'urgent tasks': 'urgent',
+        'week': 'week',
+        'weekly': 'week',
+        'month': 'month',
+        'monthly': 'month',
+        'todo': 'todo',
+        'todos': 'todo',
+        
+        # Context operations
         'contexts': 'ctx-sync',
         'database': 'ctx-rebuild',
         'index': 'ctx-rebuild',
@@ -128,6 +147,80 @@ class CommandIntentMapper:
     
     # Define known ISA commands and their patterns
     COMMAND_PATTERNS = {
+        'me': {
+            'aliases': ['my', 'self'],
+            'patterns': [
+                'my priorities',
+                'my tasks',
+                'show me my priorities',
+                'what are my priorities',
+                'personal priorities',
+                'my current priorities'
+            ],
+            'description': 'Show your personal priorities'
+        },
+        'urgent': {
+            'aliases': [],
+            'patterns': [
+                'urgent',
+                'urgent priorities',
+                'urgent tasks',
+                'what is urgent',
+                'show urgent',
+                'urgent items',
+                'critical tasks',
+                'high priority',
+                'what needs immediate attention'
+            ],
+            'description': 'Show urgent items'
+        },
+        'week': {
+            'aliases': ['weekly'],
+            'patterns': [
+                'this week',
+                'weekly tasks',
+                'week priorities',
+                'what this week',
+                'weekly plan',
+                'this weeks tasks'
+            ],
+            'description': 'Show this week\'s tasks'
+        },
+        'month': {
+            'aliases': ['monthly'],
+            'patterns': [
+                'next month',
+                'monthly plan',
+                'month priorities',
+                'monthly tasks',
+                'what next month'
+            ],
+            'description': 'Show next month\'s plan'
+        },
+        'status': {
+            'aliases': [],
+            'patterns': [
+                'status',
+                'dashboard',
+                'overview',
+                'show status',
+                'current status',
+                'what is the status'
+            ],
+            'description': 'Show ISA status dashboard'
+        },
+        'todo': {
+            'aliases': ['todos'],
+            'patterns': [
+                'todo',
+                'todos',
+                'todo list',
+                'tasks',
+                'all tasks',
+                'show todos'
+            ],
+            'description': 'Show all TODO items'
+        },
         'context-stats': {
             'aliases': ['ctx-stats'],
             'patterns': [
@@ -348,8 +441,7 @@ class CommandIntentMapper:
         """Build prompt for AI to interpret command intent."""
         command_context = self._get_command_context()
         
-        prompt = f"""You are a command interpreter for the ISA (Intelligent Shell Assistant) system.
-Your job is to translate natural language requests into executable ISA commands.
+        prompt = f"""System: You are a precise command interpreter for the ISA (Intelligent Shell Assistant) system. Your job is to translate natural language requests into executable ISA commands. Respond ONLY with valid JSON.
 
 {command_context}
 
@@ -372,10 +464,14 @@ Rules:
 - Extract any search terms, file paths, or parameters as args
 - Set confidence between 0.0 (unsure) and 1.0 (certain)
 - If unclear, set confidence below 0.5
+- For personal workflow queries like "my priorities", "urgent tasks", use commands like "me", "urgent", "week"
 
 Examples:
 User: "show me context stats"
 {{"command": "isa ctx-stats", "args": [], "confidence": 0.95, "reasoning": "Clear request for statistics"}}
+
+User: "what are my urgent priorities"
+{{"command": "isa urgent", "args": [], "confidence": 0.9, "reasoning": "Request for urgent items"}}
 
 User: "search for deployment procedures"
 {{"command": "isa ctx-search", "args": ["deployment procedures"], "confidence": 0.9, "reasoning": "Search request with clear query"}}
@@ -413,10 +509,9 @@ Now analyze the user's request and respond with JSON only."""
             # Use AI to interpret the command
             prompt = self._build_intent_prompt(user_input)
             
-            response = self.ollama_client.generate(
+            response = self.ollama_client.query(
                 prompt=prompt,
-                system="You are a precise command interpreter. Respond only with valid JSON.",
-                temperature=0.1  # Low temperature for consistent parsing
+                model=self.ollama_client.model  # Use the configured model
             )
             
             # Parse the JSON response

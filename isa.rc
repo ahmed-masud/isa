@@ -285,6 +285,9 @@ EXAMPLES:
   isa me                                    # View your priorities
   computer urgent                           # Check urgent items  
   computer ask "What's next?"                # Ask AI for guidance
+  computer , "What's next?"                  # Conversational syntax (same as above)
+  computer "What should I focus on?"         # Direct question syntax
+  computer 'How is the deployment?'         # Single quotes also work
   isa analyze urgent                        # AI analysis of urgent items
   computer suggest current                  # AI suggestions for current project
   isa ai-status                             # Check AI integration
@@ -318,6 +321,26 @@ EOF
 # Computer function - handles both ISA commands and natural language
 computer() {
     local first_arg="${1:-}"
+    local full_input="$*"
+    
+    # Check for conversational syntax: computer, "question" or computer "question"
+    # If input starts with comma or is quoted, treat as direct AI question
+    if [[ "${first_arg}" =~ ^, ]] || [[ "${full_input}" =~ ^".*"$ ]] || [[ "${full_input}" =~ ^'.*'$ ]]; then
+        # Remove leading comma and whitespace, then strip quotes if present
+        local question="${full_input#,}"
+        question="${question# }"
+        question="${question%\"}"
+        question="${question#\"}"
+        question="${question%\'}"
+        question="${question#\'}"
+        
+        if [[ -n "${question}" ]]; then
+            isa ask "${question}"
+        else
+            isa ask
+        fi
+        return
+    fi
     
     # Check if it's a direct ISA command first
     case "${first_arg}" in
