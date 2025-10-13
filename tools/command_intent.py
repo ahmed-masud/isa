@@ -101,6 +101,12 @@ class CommandIntentMapper:
         'recreate': ('ctx-rebuild', False),
         'add': ('ctx-add', True),
         'index': ('ctx-add', True),
+        'switch': ('ai-switch', True),
+        'use': ('ai-switch', True),
+        'push': ('context-push', True),
+        'pop': ('context-pop', False),
+        'back': ('context-pop', False),
+        'return': ('context-pop', False),
     }
     
     # Object/noun mappings to refine imperative commands
@@ -130,6 +136,20 @@ class CommandIntentMapper:
         'contexts': 'ctx-sync',
         'database': 'ctx-rebuild',
         'index': 'ctx-rebuild',
+        
+        # AI provider operations
+        'providers': 'ai-providers',
+        'ai providers': 'ai-providers',
+        'models': 'ai-models',
+        'ai models': 'ai-models',
+        'ai status': 'ai-status',
+        
+        # Context stack operations
+        'stack': 'context-stack',
+        'context stack': 'context-stack',
+        'breadcrumbs': 'context-breadcrumbs',
+        'context trail': 'context-breadcrumbs',
+        'previous context': 'context-pop',
     }
     
     # Contextual commands that reference history
@@ -300,6 +320,86 @@ class CommandIntentMapper:
                 'ai info'
             ],
             'description': 'Show AI system status'
+        },
+        'ai-providers': {
+            'aliases': ['providers'],
+            'patterns': [
+                'ai providers',
+                'list providers',
+                'show providers',
+                'available providers',
+                'which providers',
+                'provider status'
+            ],
+            'description': 'List available AI providers'
+        },
+        'ai-switch': {
+            'aliases': ['switch'],
+            'patterns': [
+                'switch provider',
+                'switch to',
+                'use provider',
+                'change provider',
+                'switch ai'
+            ],
+            'description': 'Switch to different AI provider',
+            'requires_arg': True
+        },
+        'ai-models': {
+            'aliases': ['models'],
+            'patterns': [
+                'ai models',
+                'list models',
+                'show models',
+                'available models',
+                'which models'
+            ],
+            'description': 'List available AI models for active provider'
+        },
+        'context-push': {
+            'aliases': ['push'],
+            'patterns': [
+                'push context',
+                'push to',
+                'save context and load',
+                'switch to temporarily',
+                'temp switch to'
+            ],
+            'description': 'Push current context to stack and load new one',
+            'requires_arg': True
+        },
+        'context-pop': {
+            'aliases': ['pop'],
+            'patterns': [
+                'pop context',
+                'go back',
+                'return to previous',
+                'restore context',
+                'back to previous'
+            ],
+            'description': 'Pop context from stack and return to it'
+        },
+        'context-stack': {
+            'aliases': ['stack'],
+            'patterns': [
+                'show stack',
+                'context stack',
+                'stack status',
+                'what contexts',
+                'show context stack'
+            ],
+            'description': 'Show current context stack'
+        },
+        'context-breadcrumbs': {
+            'aliases': ['breadcrumbs'],
+            'patterns': [
+                'show breadcrumbs',
+                'context trail',
+                'where am i',
+                'context path',
+                'show context path'
+            ],
+            'description': 'Show context breadcrumb trail'
         }
     }
     

@@ -27,16 +27,16 @@ export ISA_BIN="${HOME}/.local/bin"
 # ISA CORE ALIASES
 # ============================================================================
 
-# Context Management
+# Context Management with bat integration for colorized markdown
 alias isa-load='${ISA_ROOT}/load-context.sh'
-alias isa-me='cat ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
-alias isa-index='cat ${ISA_CONTEXTS}/people/ahmed-masud/INDEX.md'
-alias isa-urgent='grep -A 30 "URGENT PRIORITIES" ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
-alias isa-week='grep -A 20 "This Week" ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
-alias isa-matrix='grep -A 10 "PRIORITY MATRIX" ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
-alias isa-todo='cat ${ISA_ROOT}/TODO.md'
-alias isa-roadmap='cat ${ISA_ROOT}/ROADMAP.md'
-alias isa-help='cat ${ISA_ROOT}/QUICK-START.md'
+alias isa-me='isa-show-markdown ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
+alias isa-index='isa-show-markdown ${ISA_CONTEXTS}/people/ahmed-masud/INDEX.md'
+alias isa-urgent='echo "🔥 URGENT PRIORITIES:"; grep -A 30 "URGENT PRIORITIES" ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
+alias isa-week='echo "📅 THIS WEEK:"; grep -A 20 "This Week" ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
+alias isa-matrix='echo "📊 PRIORITY MATRIX:"; grep -A 10 "PRIORITY MATRIX" ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
+alias isa-todo='isa-show-markdown ${ISA_ROOT}/TODO.md'
+alias isa-roadmap='isa-show-markdown ${ISA_ROOT}/ROADMAP.md'
+alias isa-help='isa-show-markdown ${ISA_ROOT}/QUICK-START.md'
 
 # Quick edits
 alias isa-edit-priorities='${EDITOR:-vim} ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md'
@@ -67,7 +67,7 @@ isa() {
             ${ISA_ROOT}/load-context.sh "$@"
             ;;
         me|my|self)
-            cat ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md | ${PAGER:-less}
+            isa-show-markdown ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md
             ;;
         urgent)
             grep -A 40 "URGENT PRIORITIES" ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md
@@ -81,7 +81,7 @@ isa() {
             grep -A 15 "Next Month" ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md
             ;;
         todo|todos)
-            cat ${ISA_ROOT}/TODO.md | ${PAGER:-less}
+            isa-show-markdown ${ISA_ROOT}/TODO.md
             ;;
         edit)
             ${EDITOR:-vim} ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md
@@ -228,6 +228,48 @@ isa() {
             echo "📝 Adding context to vector database..."
             python3 ${ISA_ROOT}/tools/chunk_and_embed.py "$1" 2>/dev/null && echo "✅ Context added successfully" || echo "❌ Failed to add context"
             ;;
+        push|context-push)
+            if [[ -z "$1" ]]; then
+                echo "Usage: isa push <context-name>"
+                echo "Example: isa push ahmed-masud"
+                return 1
+            fi
+            # Set current context for tracking
+            if [[ -n "$ISA_CURRENT_CONTEXT" ]]; then
+                echo "$ISA_CURRENT_CONTEXT" > ${ISA_CONFIG}/.current_context
+            fi
+            # Execute push operation
+            python3 ${ISA_ROOT}/tools/context_stack.py push "$1"
+            local exit_code=$?
+            if [[ $exit_code -eq 0 ]]; then
+                export ISA_CURRENT_CONTEXT="$1"
+            fi
+            return $exit_code
+            ;;
+        pop|context-pop)
+            # Execute pop operation
+            python3 ${ISA_ROOT}/tools/context_stack.py pop
+            local exit_code=$?
+            if [[ $exit_code -eq 0 ]] && [[ -f ${ISA_CONFIG}/.current_context ]]; then
+                export ISA_CURRENT_CONTEXT=$(cat ${ISA_CONFIG}/.current_context)
+            fi
+            return $exit_code
+            ;;
+        stack|context-stack)
+            python3 ${ISA_ROOT}/tools/context_stack.py stack
+            ;;
+        peek|context-peek)
+            python3 ${ISA_ROOT}/tools/context_stack.py peek
+            ;;
+        breadcrumbs|context-breadcrumbs)
+            python3 ${ISA_ROOT}/tools/context_stack.py breadcrumbs
+            ;;
+        stack-clear|context-clear)
+            python3 ${ISA_ROOT}/tools/context_stack.py clear
+            ;;
+        stack-history|context-history)
+            python3 ${ISA_ROOT}/tools/context_stack.py history "$@"
+            ;;
         help|--help|-h)
             cat <<EOF
 ╔════════════════════════════════════════════════════════════════════╗
@@ -269,6 +311,17 @@ SEMANTIC CONTEXT COMMANDS:
   
   Short aliases: ctx-sync, ctx-stats, ctx-search, ctx-health, ctx-rebuild, ctx-add
 
+CONTEXT STACK COMMANDS:
+  push <context>      Push current context to stack and load new one
+  pop                 Pop context from stack and return to it
+  stack               Show current context stack
+  peek                Peek at top of stack without popping
+  breadcrumbs         Show context breadcrumb trail
+  stack-clear         Clear entire context stack
+  stack-history       Show context history
+  
+  Aliases: context-push, context-pop, context-stack, context-peek, etc.
+
 ALIASES:
   isa-me              View priorities
   isa-urgent          Show urgent items
@@ -301,6 +354,12 @@ EXAMPLES:
   isa ctx-search "deployment"                # Traditional form
   isa ctx-health                            # Traditional form
   isa ctx-sync                              # Traditional form
+  
+  isa push ahmed-masud                      # Push current, load ahmed-masud
+  isa pop                                   # Return to previous context
+  isa stack                                 # Show context stack
+  computer push context resiliate           # Natural language push
+  computer go back                          # Natural language pop
 
 LOCATION:
   Root: ${ISA_ROOT}
@@ -347,7 +406,9 @@ computer() {
         me|urgent|week|month|todo|edit|status|help|load|contexts|list|search|update|\
         ask|analyze|suggest|ai-status|\
         context-sync|ctx-sync|context-stats|ctx-stats|context-search|ctx-search|\
-        context-health|ctx-health|context-rebuild|ctx-rebuild|context-add|ctx-add)
+        context-health|ctx-health|context-rebuild|ctx-rebuild|context-add|ctx-add|\
+        push|context-push|pop|context-pop|stack|context-stack|peek|context-peek|\
+        breadcrumbs|context-breadcrumbs|stack-clear|context-clear|stack-history|context-history)
             # Known ISA command, pass through
             isa "$@"
             ;;
@@ -427,6 +488,55 @@ isa-morning() {
     echo "  isa-week        - This week's tasks"
     echo "  isa todo        - View all TODOs"
     echo ""
+}
+
+# Helper function to display markdown with syntax highlighting
+isa-show-markdown() {
+    local file="$1"
+    if [[ -z "$file" ]]; then
+        echo "Usage: isa-show-markdown <markdown-file>"
+        return 1
+    fi
+    
+    if [[ ! -f "$file" ]]; then
+        echo "❌ File not found: $file"
+        return 1
+    fi
+    
+    # Check if bat is available
+    if command -v bat >/dev/null 2>&1; then
+        echo "📖 Displaying: $file"
+        echo "───────────────────────────────────────────────────────────────────"
+        bat --style=numbers,changes,header --color=always --language=markdown "$file"
+    else
+        # Fallback to cat if bat is not available
+        echo "📖 Displaying: $file (no syntax highlighting - install 'bat' for colors)"
+        echo "───────────────────────────────────────────────────────────────────"
+        cat "$file"
+    fi
+}
+
+# Multiple markdown display options
+alias show-md='isa-show-markdown'        # Full bat display with colors
+alias mdcat='isa-show-markdown'         # Same as show-md
+alias mdplain='isa-markdown-plain'      # Plain text with simple formatting
+
+# Simple markdown viewer without colors (for when bat colors don't work)
+isa-markdown-plain() {
+    local file="$1"
+    if [[ -z "$file" ]]; then
+        echo "Usage: isa-markdown-plain <markdown-file>"
+        return 1
+    fi
+    
+    if [[ ! -f "$file" ]]; then
+        echo "❌ File not found: $file"
+        return 1
+    fi
+    
+    echo "📖 Displaying: $file (plain text)"
+    echo "───────────────────────────────────────────────────────────────────"
+    cat "$file"
 }
 
 # Evening review - run this at end of day
