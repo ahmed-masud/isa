@@ -1,0 +1,5 @@
+#!/bin/zsh
+# computer, wrapper - allows computer,"question" syntax
+# Forwards to: computer , "question"
+
+computer , "$@"

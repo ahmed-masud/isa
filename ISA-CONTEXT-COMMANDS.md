@@ -1,0 +1,507 @@
+# ISA Semantic Context Commands - Quick Reference
+
+## 🎯 Overview
+
+ISA now provides high-level commands for managing the semantic context system without needing to use low-level Python scripts.
+
+### 🗣️ Natural Language Commands NEW!
+
+You can now use natural language to control ISA! Just speak to the computer naturally:
+
+```bash
+# These all work!
+computer show me context stats
+computer are the services healthy
+computer search for deployment procedures
+computer sync all my contexts
+```
+
+ISA will automatically understand your intent and execute the right command. See [Natural Language Commands](#natural-language-commands) section for more details.
+
+### ⚡ Quick Imperative Commands NEW!
+
+Even faster! Use direct imperative verbs without "do":
+
+```bash
+computer show stats       # Same as: isa ctx-stats
+computer check health     # Same as: isa ctx-health  
+computer search helm      # Same as: isa ctx-search "helm"
+computer sync             # Same as: isa ctx-sync
+computer rebuild          # Same as: isa ctx-rebuild
+```
+
+Just tell the computer what to do - no extra words needed!
+
+## 📋 Available Commands
+
+### Context Statistics
+```bash
+isa context-stats
+# or short form:
+isa ctx-stats
+```
+Shows vector database statistics including:
+- Total chunks indexed
+- Training status
+- Storage location
+
+**Example output:**
+```
+📊 Vector Database Statistics
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Total Chunks: 237
+  Trained: True
+  Storage: simple_vector_storage
+```
+
+---
+
+### Health Check
+```bash
+isa context-health
+# or short form:
+isa ctx-health
+```
+Checks status of all semantic context services:
+- Vector Database (192.168.1.161:8000)
+- Ollama AI (192.168.1.161:11434)
+- Context Watcher (local)
+
+**Example output:**
+```
+🏥 Checking semantic context services...
+
+Vector Database (192.168.1.161:8000):
+  ✅ Healthy
+
+Ollama AI (192.168.1.161:11434):
+  ✅ Healthy
+
+Context Watcher (local):
+  ✅ Running
+```
+
+---
+
+### Semantic Search
+```bash
+isa context-search "your search query"
+# or short form:
+isa ctx-search "deployment procedures"
+```
+Performs semantic search across all your contexts, returning the most relevant results with relevance scores.
+
+**Example:**
+```bash
+isa ctx-search "how to deploy to helm"
+```
+
+**Example output:**
+```
+🔍 Semantic Search: how to deploy to helm
+
+Found 3 relevant contexts:
+==================================================
+
+1. things/isa-helm-deployment/README.md (Deployment) - Relevance: 0.89
+----------------------------------------
+[Relevant content displayed]
+
+2. things/isa-ollama-integration/PRIORITIES.md (Remote Integration) - Relevance: 0.46
+----------------------------------------
+[Relevant content displayed]
+```
+
+---
+
+### Sync All Contexts
+```bash
+isa context-sync
+# or short form:
+isa ctx-sync
+```
+Processes all markdown files in your contexts directory and syncs them to the vector database.
+
+**Use when:**
+- You've added new context files
+- You've made significant updates to existing contexts
+- You want to ensure all contexts are indexed
+
+**Example output:**
+```
+🔄 Processing contexts into vector database...
+  Processing: README.md
+  Processing: PRIORITIES.md
+  Processing: DEPLOYMENT.md
+✅ Processed 5 context files
+```
+
+---
+
+### Add Single Context
+```bash
+isa context-add <path-to-markdown-file>
+# or short form:
+isa ctx-add ~/.config/isa/contexts/things/my-project/README.md
+```
+Adds or updates a single context file in the vector database.
+
+**Use when:**
+- You've created a new context file
+- You've updated a specific context and want immediate indexing
+
+---
+
+### Rebuild Index
+```bash
+isa context-rebuild
+# or short form:
+isa ctx-rebuild
+```
+Rebuilds the entire vector database index. Use this if the index seems corrupted or after bulk changes.
+
+**Example output:**
+```
+🔨 Rebuilding vector database index...
+✅ Rebuilt: 237 chunks
+```
+
+---
+
+## 🗣️ Natural Language Commands
+
+### What is it?
+
+Instead of remembering exact command syntax, you can now talk to your computer naturally! ISA uses AI to understand your intent and automatically executes the right command.
+
+### How to Use
+
+```bash
+computer <what you want in natural language>
+# Examples:
+computer show stats                      # Imperative
+computer are the services healthy        # Question
+computer search for deployment           # Natural phrase
+```
+
+### Examples
+
+#### Get Statistics
+```bash
+computer show me context stats
+computer how many chunks do we have
+computer show statistics
+```
+All of these run: `isa ctx-stats`
+
+#### Health Checks
+```bash
+computer are the services healthy
+computer is everything running
+computer check health
+computer check status
+```
+All of these run: `isa ctx-health`
+
+#### Search Contexts
+```bash
+computer search for deployment
+computer find information about priorities
+computer find helm setup
+```
+These run: `isa ctx-search "<your query>"`
+
+#### Sync Contexts
+```bash
+computer sync all my contexts
+computer update the contexts
+computer refresh
+computer sync
+```
+All of these run: `isa ctx-sync`
+
+#### Rebuild Index
+```bash
+computer rebuild the index
+computer start over with the database
+computer rebuild
+```
+All of these run: `isa ctx-rebuild`
+
+### How It Works
+
+1. **AI Interpretation** (when available): ISA uses Ollama AI to understand your natural language and determine the best command
+2. **Fallback Pattern Matching**: If AI is unavailable, ISA uses smart pattern matching to understand common phrases
+3. **Confidence Scoring**: ISA tells you how confident it is about the interpretation
+4. **Safe Execution**: Commands are validated before execution
+
+### Supported Patterns
+
+The system understands variations of:
+- "show", "display", "get", "check"
+- "search", "find", "look for", "locate"
+- "sync", "update", "refresh", "reindex"
+- "rebuild", "recreate", "start over"
+- "health", "status", "are things working"
+
+### Tips for Natural Language Commands
+
+1. **Be conversational**: "check if everything is healthy" works great
+2. **Include keywords**: Words like "search", "check", "show" help ISA understand
+3. **Be specific for search**: "search for deployment procedures" is better than "find stuff"
+4. **Try variations**: If one phrasing doesn't work, rephrase it
+
+### Testing Natural Language
+
+You can test what command ISA would execute without running it:
+
+```bash
+# Dry run mode - shows what would be executed
+python3 ~/projects/isa/tools/command_intent.py "show me stats" --dry-run
+
+# Verbose mode - shows interpretation process
+python3 ~/projects/isa/tools/command_intent.py "check health" --verbose
+
+# JSON output - for scripting
+python3 ~/projects/isa/tools/command_intent.py "sync contexts" --json
+```
+
+---
+
+## 📜 Contextual Commands (History-Aware)
+
+ISA now tracks command history and supports contextual references!
+
+### Repeat Previous Commands
+
+```bash
+# Run a command
+computer show stats
+
+# Repeat it
+computer repeat last
+computer do it again
+computer redo
+```
+
+### Process Control (for long-running commands)
+
+```bash
+# Start a sync
+computer sync
+
+# In another terminal, stop it
+computer stop the previous command
+computer kill it
+computer kill that
+```
+
+**Supported contextual actions:**
+- **repeat/redo/again**: Re-execute the previous command
+- **stop/halt**: Gracefully terminate the previous command (SIGTERM)
+- **kill/terminate**: Forcefully kill the previous command (SIGKILL)
+
+**Supported references:**
+- **previous/last**: Refers to the most recent command
+- **it/that**: Refers to the most recent command
+
+### How It Works
+
+1. ISA tracks all commands you execute through the natural language interface
+2. Command history is stored in `~/.config/isa/.command_history.json`
+3. Each command stores its PID (process ID) for process control
+4. History is limited to the last 100 commands
+
+---
+
+## 🔗 Integration with AI Commands
+
+The semantic context system works automatically with existing AI commands:
+
+```bash
+# AI automatically uses semantic context
+computer ask "What should I work on next?"
+
+# AI analysis with semantic context
+isa ai-analyze urgent
+
+# AI suggestions with project context
+computer suggest --project=isa-ollama
+
+# Check if semantic context is active
+isa ai-status
+```
+
+When semantic context is available, you'll see:
+```
+🔍 Semantic Context: ✅ Available
+   📊 Vector database stats: {'total_chunks': 237, 'is_trained': True}
+```
+
+---
+
+## 💡 Common Workflows
+
+### Daily Use (Traditional)
+```bash
+# Morning check
+isa ctx-health                          # Ensure services are running
+isa ctx-stats                           # See current context state
+computer ask "What are my priorities?"  # AI uses semantic context
+```
+
+### Daily Use (Natural Language)
+```bash
+# Morning check - imperative style
+computer check health                   # Quick health check
+computer show stats                     # See stats
+computer ask "What should I work on?"   # AI guidance
+
+# Or with natural questions
+computer are the services healthy
+computer show me the context stats
+```
+
+### After Adding New Context
+```bash
+# Add new context immediately
+isa ctx-add ~/.config/isa/contexts/things/new-project/README.md
+
+# Or sync all contexts
+isa ctx-sync
+```
+
+### Troubleshooting
+```bash
+# Check service health
+isa ctx-health
+
+# Rebuild if something seems wrong
+isa ctx-rebuild
+
+# Check stats to verify
+isa ctx-stats
+```
+
+### Finding Information
+```bash
+# Semantic search is more powerful than grep
+isa ctx-search "deployment procedures"
+isa ctx-search "AI integration steps"
+isa ctx-search "priority tasks"
+
+# Then ask AI about the results
+computer ask "Based on my deployment procedures, what should I do first?"
+```
+
+---
+
+## 📊 Command Comparison
+
+### Before (Low-level Python)
+```bash
+# Check stats
+curl -s http://192.168.1.161:8000/stats | python3 -m json.tool
+
+# Add context
+python3 ~/projects/isa/tools/chunk_and_embed.py ~/path/to/file.md
+
+# Search
+python3 ~/projects/isa/tools/semantic_context.py "query" --format text
+
+# Health check
+curl -s http://192.168.1.161:8000/health
+python3 ~/projects/isa/tools/ollama_client.py --health-check
+```
+
+### After (High-level ISA)
+```bash
+# Check stats
+isa ctx-stats
+
+# Add context
+isa ctx-add ~/path/to/file.md
+
+# Search
+isa ctx-search "query"
+
+# Health check
+isa ctx-health
+```
+
+---
+
+## 🎯 Command Style Comparison
+
+ISA now supports multiple ways to express the same command. Choose the style you prefer!
+
+| What You Want | Traditional | Imperative | Natural Question |
+|---------------|-------------|------------|------------------|
+| See stats | `isa ctx-stats` | `computer show stats` | `computer show me the stats` |
+| Health check | `isa ctx-health` | `computer check health` | `computer are the services healthy` |
+| Search | `isa ctx-search "x"` | `computer find x` | `computer search for x` |
+| Sync contexts | `isa ctx-sync` | `computer sync` | `computer sync all contexts` |
+| Rebuild index | `isa ctx-rebuild` | `computer rebuild` | `computer rebuild the database` |
+| Repeat last | N/A | `computer redo` | `computer do it again` |
+| Stop process | N/A | `computer stop that` | `computer stop the previous command` |
+
+**Pro tips:**
+- **Shorter is faster:** `computer show stats` beats the full phrase
+- **Be consistent:** Pick a style and stick with it
+- **Mix and match:** Use traditional for scripts, imperative for interactive use
+- **Let AI help:** When unsure, try natural language - ISA will figure it out
+
+---
+
+## 🎯 Best Practices
+
+1. **Regular Health Checks**: Run `isa ctx-health` periodically to ensure services are running
+
+2. **Keep Contexts Synced**: After editing context files, run `isa ctx-sync` or let the context watcher handle it automatically
+
+3. **Use Semantic Search**: Instead of grepping through files, use `isa ctx-search` for better results
+
+4. **Leverage AI Integration**: Use `computer ask` instead of manually searching - the AI will use semantic context automatically
+
+5. **Monitor Growth**: Check `isa ctx-stats` occasionally to see how your knowledge base is growing
+
+---
+
+## 📚 Related Documentation
+
+- `ISA-SEMANTIC-SETUP.md` - Complete semantic context setup guide
+- `VECTOR-DATABASE-DESIGN.md` - Architecture and design documentation
+- `RELEASE-NOTES.md` - Version history and features
+- `GIT-FLOW-SETUP.md` - Development workflow
+
+---
+
+## 🆘 Troubleshooting
+
+### "Vector service not available"
+```bash
+# On Helm server
+ssh 192.168.1.161
+cd /home/masud/projects/isa
+python3 vector_service_simple.py > simple_vector_service.log 2>&1 &
+```
+
+### "Context watcher not running"
+```bash
+# On local machine
+cd ~/projects/isa
+python3 tools/context_watcher.py --verbose > context_watcher.log 2>&1 &
+```
+
+### "Semantic context not active in AI"
+```bash
+# Test the connection
+python3 ~/projects/isa/tools/ollama_client.py --test-semantic
+
+# Check health
+isa ctx-health
+```
+
+---
+
+**With these commands, managing your ISA semantic context system is as easy as any other ISA operation!** 🚀

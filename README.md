@@ -1,18 +1,20 @@
-# vibe-dev (vdev)
-**Development Context Management System**
+# ISA - Intelligent Support Assistant
+**AI-Powered Context-Aware Shell Assistant**
 
-A powerful shell-based tool for managing personal and project contexts, priorities, and development workflows across multiple machines.
+A powerful shell-based assistant that combines priority management, semantic search, and natural language AI to help you stay focused and productive.
 
 ---
 
-## 🎯 What is vibe-dev?
+## 🎯 What is ISA?
 
-vibe-dev (vdev) is a context management system that helps you:
-- **Track priorities** across multiple projects
-- **Manage contexts** for people, places, and things
-- **Navigate quickly** between projects and work areas
-- **Prevent interruptions** from system sleep
-- **Sync seamlessly** across machines via Samba/network shares
+ISA (Intelligent Support Assistant) is your AI-powered command-line assistant that helps you:
+- **Manage priorities** across multiple projects with markdown-based contexts
+- **Talk naturally** to your computer with imperative and conversational commands
+- **Search semantically** through your knowledge base using vector embeddings
+- **Get AI insights** with Ollama integration for intelligent suggestions
+- **Track command history** for contextual operations (repeat, stop, etc.)
+
+**New in v1.0.0:** Natural language commands, semantic context search, and command history!
 
 ---
 
@@ -71,38 +73,36 @@ vibe-dev (vdev) is a context management system that helps you:
 
 ## 🚀 Quick Start
 
+**New to ISA?** Start here: **[GETTING-STARTED.md](GETTING-STARTED.md)** 🎓
+
 ### Installation
 ```bash
-# Clone/setup vibe-dev tool
-cd ~/projects
-git clone <repo-url> vibe-dev  # Or setup as needed
-
-# Ensure user data directory exists
-mkdir -p ~/vibe-dev/contexts
-
-# Add to shell
-echo 'source ~/projects/vibe-dev/vdev.rc' >> ~/.zshrc
+# Add to your shell configuration
+echo 'source ~/projects/isa/isa.rc' >> ~/.zshrc
 
 # Reload shell
-exec zsh
+source ~/.zshrc
+
+# Verify installation
+isa help
 ```
 
 ### Basic Usage
 ```bash
-# View your priorities
-vdev me
+# Traditional style
+isa me                          # View your priorities
+isa urgent                      # Check urgent items
+isa week                        # This week's tasks
 
-# Check urgent items
-vdev urgent
+# Natural language (NEW!)
+computer show stats             # Show vector database stats
+computer are the services healthy   # Health check
+computer find deployment        # Semantic search
+computer sync                   # Sync contexts
 
-# This week's tasks
-vdev week
-
-# Morning brief
-vdev-morning
-
-# Load another context
-vdev load denis-krusos
+# AI features
+computer ask "What should I work on?"   # Get AI suggestions
+isa ai-analyze urgent           # AI analysis of urgent items
 ```
 
 ---
@@ -111,12 +111,11 @@ vdev load denis-krusos
 
 | Document | Purpose |
 |----------|---------|
-| [QUICK-START.md](docs/QUICK-START.md) | Get started quickly |
-| [INSTALL.md](docs/INSTALL.md) | Detailed installation guide |
-| [PREVENT-SLEEP-GUIDE.md](docs/PREVENT-SLEEP-GUIDE.md) | Sleep prevention guide |
-| [CONTEXT-MANAGEMENT.md](docs/CONTEXT-MANAGEMENT.md) | Context system docs |
-| [TODO.md](docs/TODO.md) | Development tasks |
-| [ROADMAP.md](docs/ROADMAP.md) | Future plans |
+| **[GETTING-STARTED.md](GETTING-STARTED.md)** | **Complete beginner's guide** 🎓 |
+| [ISA-CONTEXT-COMMANDS.md](ISA-CONTEXT-COMMANDS.md) | Comprehensive command reference |
+| [GIT-FLOW-SETUP.md](GIT-FLOW-SETUP.md) | Git workflow documentation |
+| [ISA-SEMANTIC-SETUP.md](ISA-SEMANTIC-SETUP.md) | Semantic context setup guide |
+| [VECTOR-DATABASE-DESIGN.md](VECTOR-DATABASE-DESIGN.md) | Architecture documentation |
 
 ---
 

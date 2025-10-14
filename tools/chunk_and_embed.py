@@ -44,6 +44,9 @@ class MarkdownChunker:
         # Split by major sections (## headers)
         sections = self._split_by_headers(content)
         
+        # Get sub-context metadata if applicable
+        sub_context_info = self._get_sub_context_info(source_path)
+        
         for section_title, section_content in sections:
             # Further chunk large sections
             section_chunks = self._chunk_section(section_content, section_title)
@@ -54,17 +57,24 @@ class MarkdownChunker:
                     normalized_source = self._normalize_source_path(source_path)
                     chunk_id = self._generate_chunk_id(chunk_text.strip(), normalized_source, section_title or "header", i)
                     
+                    # Build metadata
+                    metadata = {
+                        "file_path": source_path,
+                        "chunk_size": len(chunk_text),
+                        "context_type": self._infer_context_type(source_path),
+                        "section_title": section_title
+                    }
+                    
+                    # Add sub-context metadata if available
+                    if sub_context_info:
+                        metadata.update(sub_context_info)
+                    
                     chunk = ContextChunk(
                         text=chunk_text.strip(),
                         source=normalized_source,
                         section=section_title or "header",
                         chunk_id=chunk_id,
-                        metadata={
-                            "file_path": source_path,
-                            "chunk_size": len(chunk_text),
-                            "context_type": self._infer_context_type(source_path),
-                            "section_title": section_title
-                        }
+                        metadata=metadata
                     )
                     chunks.append(chunk)
         
@@ -126,10 +136,16 @@ class MarkdownChunker:
     
     def _normalize_source_path(self, path: str) -> str:
         """Normalize source path for consistent referencing"""
-        # Convert absolute path to relative from ISA_CONTEXTS
+        # Convert absolute path to relative from ISA_CONTEXTS or sub-contexts
         isa_contexts = os.getenv('ISA_CONTEXTS', '/Users/masud/.config/isa/contexts')
+        isa_config = os.getenv('ISA_CONFIG', '/Users/masud/.config/isa')
+        sub_contexts_dir = os.path.join(isa_config, 'sub-contexts')
+        
         if path.startswith(isa_contexts):
             return path[len(isa_contexts):].lstrip('/')
+        elif path.startswith(sub_contexts_dir):
+            relative_path = path[len(sub_contexts_dir):].lstrip('/')
+            return f"sub-contexts/{relative_path}"
         return os.path.basename(path)
     
     def _infer_context_type(self, path: str) -> str:
@@ -140,6 +156,8 @@ class MarkdownChunker:
             return 'place'
         elif '/things/' in path:
             return 'project'
+        elif '/sub-contexts/' in path:
+            return 'blended'
         elif 'PRIORITIES' in path:
             return 'priorities'
         elif 'README' in path:
@@ -151,6 +169,65 @@ class MarkdownChunker:
         """Generate unique chunk ID based on content and metadata"""
         content = f"{source}:{section}:{index}:{text[:100]}"
         return hashlib.md5(content.encode()).hexdigest()[:16]
+    
+    def _get_sub_context_info(self, source_path: str) -> Dict[str, Any]:
+        """Extract sub-context metadata if file is in a sub-context"""
+        isa_config = os.getenv('ISA_CONFIG', '/Users/masud/.config/isa')
+        sub_contexts_dir = os.path.join(isa_config, 'sub-contexts')
+        
+        if not source_path.startswith(sub_contexts_dir):
+            return {}
+        
+        # Extract sub-context name from path
+        relative_path = source_path[len(sub_contexts_dir):].lstrip('/')
+        sub_context_name = relative_path.split('/')[0]
+        
+        # Try to load sub-context info file
+        info_file_path = os.path.join(sub_contexts_dir, sub_context_name, '.sub-context-info.json')
+        
+        try:
+            if os.path.exists(info_file_path):
+                with open(info_file_path, 'r') as f:
+                    sub_context_data = json.load(f)
+                
+                # Extract parent context names and types
+                parent_contexts = []
+                parent_types = []
+                for parent in sub_context_data.get('parent_contexts', []):
+                    parent_contexts.append(parent['name'])
+                    parent_types.append(parent['type'])
+                
+                return {
+                    'is_sub_context': True,
+                    'sub_context_name': sub_context_name,
+                    'parent_contexts': parent_contexts,
+                    'parent_types': parent_types,
+                    'sub_context_created': sub_context_data.get('created'),
+                    'blended_from': ' + '.join(parent_contexts),
+                    'original_source': self._extract_original_source(source_path, sub_context_data)
+                }
+        except Exception as e:
+            logger.warning(f"Failed to load sub-context info for {sub_context_name}: {e}")
+        
+        return {'is_sub_context': True, 'sub_context_name': sub_context_name}
+    
+    def _extract_original_source(self, file_path: str, sub_context_data: Dict[str, Any]) -> str:
+        """Extract the original source context for a blended file"""
+        filename = os.path.basename(file_path)
+        
+        # Check blended_files mapping to find original source
+        blended_files = sub_context_data.get('blended_files', {})
+        if filename in blended_files:
+            sources = blended_files[filename]
+            if sources and len(sources) > 0:
+                return sources[0]  # Return the first/primary source
+        
+        # Fallback: try to infer from filename prefix
+        if '-' in filename:
+            prefix = filename.split('-')[0]
+            return f"things/{prefix}" if prefix not in ['ahmed', 'masud'] else f"people/{prefix}"
+        
+        return "unknown"
 
 class VectorClient:
     """Client for communicating with the vector database service"""
