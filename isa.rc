@@ -63,7 +63,7 @@ isa() {
     shift
     
     case "${cmd}" in
-        load)
+        load|ctx-switch)
             ${ISA_ROOT}/load-context.sh "$@"
             ;;
         me|my|self)
@@ -615,8 +615,13 @@ USAGE:
   isa <command> [options]
   computer <command> [options]   # Same as 'isa'
 
+NATURAL LANGUAGE SUPPORT:
+  Both 'isa' and 'computer' support natural language commands.
+  If a command is not recognized, ISA will try to interpret it using AI.
+
 COMMANDS:
   load <name>          Load a context by name
+  ctx-switch <name>    Switch to a context (alias for load)
   me|my|self          View your personal priorities
   urgent              Show urgent items
   week|weekly         Show this week's tasks
@@ -644,7 +649,7 @@ SEMANTIC CONTEXT COMMANDS:
   context-rebuild     Rebuild vector database index
   context-add <file>  Add a context file to database
   
-  Short aliases: ctx-sync, ctx-stats, ctx-search, ctx-health, ctx-rebuild, ctx-add
+  Short aliases: ctx-sync, ctx-stats, ctx-search, ctx-health, ctx-rebuild, ctx-add, ctx-switch
 
 CONTEXT STACK COMMANDS:
   push <context>      Push current context to stack and load new one
@@ -712,6 +717,11 @@ EXAMPLES:
   computer find deployment                  # Imperative → isa ctx-search
   computer sync                             # Imperative → isa ctx-sync
   
+  isa show contexts                         # Natural language → isa contexts
+  isa display available contexts            # Natural language → isa contexts
+  isa check health                          # Natural language → isa ctx-health
+  isa what contexts do we have              # Natural language → isa contexts
+  
   isa ctx-stats                             # Traditional form
   isa ctx-search "deployment"                # Traditional form
   isa ctx-health                            # Traditional form
@@ -743,9 +753,15 @@ For more help: cat ${ISA_ROOT}/QUICK-START.md
 EOF
             ;;
         *)
-            echo "Unknown command: ${cmd}"
-            echo "Run 'isa help' for usage information"
-            return 1
+            # Not a known ISA command - try natural language interpretation
+            if [[ -n "${cmd}" ]]; then
+                echo "🤖 Interpreting: ${cmd} $@"
+                python3 ${ISA_ROOT}/tools/command_intent.py "${cmd}" "$@"
+            else
+                echo "Unknown command: ${cmd}"
+                echo "Run 'isa help' for usage information"
+                return 1
+            fi
             ;;
     esac
 }
@@ -776,7 +792,7 @@ computer() {
     
     # Check if it's a direct ISA command first
     case "${first_arg}" in
-        me|urgent|week|month|todo|edit|status|help|load|contexts|list|search|update|\
+        me|urgent|week|month|todo|edit|status|help|load|ctx-switch|contexts|list|search|update|\
         ask|analyze|suggest|ai-status|\
         context-sync|ctx-sync|context-stats|ctx-stats|context-search|ctx-search|\
         context-health|ctx-health|context-rebuild|ctx-rebuild|context-add|ctx-add|\

@@ -133,7 +133,7 @@ class CommandIntentMapper:
         'todos': 'todo',
         
         # Context operations
-        'contexts': 'ctx-sync',
+        'contexts': 'contexts',
         'database': 'ctx-rebuild',
         'index': 'ctx-rebuild',
         
@@ -247,6 +247,30 @@ class CommandIntentMapper:
                 'show todos'
             ],
             'description': 'Show all TODO items'
+        },
+        'contexts': {
+            'aliases': ['list'],
+            'patterns': [
+                'contexts',
+                'list contexts',
+                'show contexts',
+                'display contexts',
+                'all contexts',
+                'available contexts',
+                'what contexts are available',
+                'show all contexts',
+                'list all contexts',
+                'display all contexts', 
+                'show available contexts',
+                'display available contexts',
+                'what contexts exist',
+                'what contexts do we have',
+                'which contexts are available',
+                'view contexts',
+                'see contexts',
+                'check contexts'
+            ],
+            'description': 'List all available contexts'
         },
         'context-stats': {
             'aliases': ['ctx-stats'],
