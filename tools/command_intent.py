@@ -150,6 +150,13 @@ class CommandIntentMapper:
         'breadcrumbs': 'context-breadcrumbs',
         'context trail': 'context-breadcrumbs',
         'previous context': 'context-pop',
+        
+        # Google Drive operations
+        'google drive': 'drive-mount',
+        'gdrive': 'drive-mount',
+        'drive': 'drive-mount',
+        'drive status': 'drive-status',
+        'drives': 'drive-status',
     }
     
     # Contextual commands that reference history
@@ -400,6 +407,38 @@ class CommandIntentMapper:
                 'show context path'
             ],
             'description': 'Show context breadcrumb trail'
+        },
+        'drive-mount': {
+            'aliases': ['mount', 'gdrive-mount'],
+            'patterns': [
+                'mount google drive',
+                'mount drive',
+                'connect google drive',
+                'access google drive',
+                'mount gdrive'
+            ],
+            'description': 'Mount Google Drive for current context'
+        },
+        'drive-unmount': {
+            'aliases': ['unmount', 'gdrive-unmount'],
+            'patterns': [
+                'unmount google drive',
+                'unmount drive',
+                'disconnect google drive',
+                'unmount gdrive'
+            ],
+            'description': 'Unmount Google Drive'
+        },
+        'drive-status': {
+            'aliases': ['gdrive-status'],
+            'patterns': [
+                'drive status',
+                'google drive status',
+                'gdrive status',
+                'show drives',
+                'drive mounts'
+            ],
+            'description': 'Show Google Drive mount status'
         }
     }
     

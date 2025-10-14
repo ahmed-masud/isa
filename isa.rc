@@ -270,6 +270,38 @@ isa() {
         stack-history|context-history)
             python3 ${ISA_ROOT}/tools/context_stack.py history "$@"
             ;;
+        drive-mount|gdrive-mount|mount-drive)
+            if [[ -z "$1" ]]; then
+                # Auto-mount for current context
+                python3 ${ISA_ROOT}/tools/google_drive_integration.py auto-mount
+            else
+                # Mount specific context
+                python3 ${ISA_ROOT}/tools/google_drive_integration.py mount "$1"
+            fi
+            ;;
+        drive-unmount|gdrive-unmount|unmount-drive)
+            if [[ -z "$1" ]]; then
+                # Unmount current context
+                python3 ${ISA_ROOT}/tools/google_drive_integration.py unmount
+            else
+                # Unmount specific context
+                python3 ${ISA_ROOT}/tools/google_drive_integration.py unmount "$1"
+            fi
+            ;;
+        drive-status|gdrive-status)
+            python3 ${ISA_ROOT}/tools/google_drive_integration.py status
+            ;;
+        drive-list|gdrive-list|list-drives)
+            python3 ${ISA_ROOT}/tools/google_drive_integration.py list
+            ;;
+        drive-setup|gdrive-setup)
+            if [[ -z "$1" ]]; then
+                echo "Usage: isa drive-setup <context-name>"
+                echo "Example: isa drive-setup ahmed-masud"
+                return 1
+            fi
+            python3 ${ISA_ROOT}/tools/google_drive_integration.py setup "$1"
+            ;;
         help|--help|-h)
             cat <<EOF
 ╔════════════════════════════════════════════════════════════════════╗
@@ -322,6 +354,16 @@ CONTEXT STACK COMMANDS:
   
   Aliases: context-push, context-pop, context-stack, context-peek, etc.
 
+GOOGLE DRIVE COMMANDS:
+  drive-mount         Mount Google Drive for current context
+  drive-mount <ctx>   Mount Google Drive for specific context
+  drive-unmount       Unmount Google Drive for current context
+  drive-status        Show Google Drive mount status
+  drive-list          List all configured Google Drives
+  drive-setup <ctx>   Setup rclone remote for context
+  
+  Aliases: gdrive-mount, mount-drive, gdrive-unmount, etc.
+
 ALIASES:
   isa-me              View priorities
   isa-urgent          Show urgent items
@@ -360,6 +402,11 @@ EXAMPLES:
   isa stack                                 # Show context stack
   computer push context resiliate           # Natural language push
   computer go back                          # Natural language pop
+  
+  isa drive-mount                           # Mount drive for current context
+  isa drive-mount ahmed-masud               # Mount specific context drive
+  isa drive-status                          # Show Google Drive status
+  computer mount google drive               # Natural language mount
 
 LOCATION:
   Root: ${ISA_ROOT}
@@ -408,7 +455,9 @@ computer() {
         context-sync|ctx-sync|context-stats|ctx-stats|context-search|ctx-search|\
         context-health|ctx-health|context-rebuild|ctx-rebuild|context-add|ctx-add|\
         push|context-push|pop|context-pop|stack|context-stack|peek|context-peek|\
-        breadcrumbs|context-breadcrumbs|stack-clear|context-clear|stack-history|context-history)
+        breadcrumbs|context-breadcrumbs|stack-clear|context-clear|stack-history|context-history|\
+        drive-mount|gdrive-mount|mount-drive|drive-unmount|gdrive-unmount|unmount-drive|\
+        drive-status|gdrive-status|drive-list|gdrive-list|list-drives|drive-setup|gdrive-setup)
             # Known ISA command, pass through
             isa "$@"
             ;;
