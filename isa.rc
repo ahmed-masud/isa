@@ -451,6 +451,159 @@ isa() {
         sub-cleanup|subcleanup)
             python3 ${ISA_ROOT}/tools/sub_context_manager.py cleanup
             ;;
+        new|create)
+            if [[ -z "$1" ]]; then
+                echo "Usage: isa new <context-name> [type] [--switch]"
+                echo "Types: people, places, things (default: people)"
+                echo "Examples:"
+                echo "  isa new john-doe                    # Create person context"
+                echo "  isa new aws-prod places             # Create place context"
+                echo "  isa new kubernetes-cluster things   # Create thing context"
+                echo "  isa new project-x --switch          # Create and switch to context"
+                return 1
+            fi
+            
+            local context_name="$1"
+            local context_type="people"
+            local should_switch=false
+            shift
+            
+            # Parse remaining arguments
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    people|places|things)
+                        context_type="$1"
+                        shift
+                        ;;
+                    --switch|-s)
+                        should_switch=true
+                        shift
+                        ;;
+                    *)
+                        echo "Unknown argument: $1"
+                        return 1
+                        ;;
+                esac
+            done
+            
+            # Create the context directory
+            local context_dir="${ISA_CONTEXTS}/${context_type}/${context_name}"
+            
+            if [[ -d "${context_dir}" ]]; then
+                echo "❌ Context '${context_name}' already exists in ${context_type}"
+                return 1
+            fi
+            
+            echo "🆕 Creating new context: ${context_name} (type: ${context_type})"
+            mkdir -p "${context_dir}"
+            
+            # Create README.md template
+            cat > "${context_dir}/README.md" << EOF
+# ${context_name}
+
+## Overview
+
+Context for ${context_name}.
+
+## Key Information
+
+- **Type**: ${context_type}
+- **Created**: $(date '+%Y-%m-%d')
+- **Status**: Active
+
+## Notes
+
+(Add your notes here)
+
+## Resources
+
+(Add relevant links, documents, or references)
+
+## Action Items
+
+- [ ] Initialize context documentation
+- [ ] Add relevant information
+- [ ] Set up any necessary integrations
+
+---
+*Context created by ISA on $(date '+%Y-%m-%d %H:%M:%S')*
+EOF
+            
+            # For people contexts, also create PRIORITIES.md
+            if [[ "${context_type}" == "people" ]]; then
+                cat > "${context_dir}/PRIORITIES.md" << EOF
+# ${context_name} - Priorities
+
+## Current Focus
+
+### URGENT PRIORITIES (Next 5 days)
+
+1. **[Task Name]**
+   - Status: NOT STARTED
+   - Deadline: [Date]
+   - Impact: High
+   - Notes: [Description]
+
+### This Week
+
+- [ ] [Task 1]
+- [ ] [Task 2]
+- [ ] [Task 3]
+
+### Next Month
+
+- [ ] [Future task 1]
+- [ ] [Future task 2]
+
+## PRIORITY MATRIX
+
+### High Impact, High Urgency (Do First)
+- [Item]
+
+### High Impact, Low Urgency (Schedule)
+- [Item]
+
+### Low Impact, High Urgency (Delegate)
+- [Item]
+
+### Low Impact, Low Urgency (Eliminate)
+- [Item]
+
+---
+*Last Updated: $(date '+%Y-%m-%d')*
+EOF
+            fi
+            
+            echo "✅ Created context structure in ${context_dir}"
+            echo "📝 Files created:"
+            echo "  - README.md"
+            if [[ "${context_type}" == "people" ]]; then
+                echo "  - PRIORITIES.md"
+            fi
+            
+            # Add to vector database
+            echo "📊 Adding to vector database..."
+            python3 ${ISA_ROOT}/tools/chunk_and_embed.py "${context_dir}/README.md" 2>/dev/null && echo "✅ Added README.md to vector database" || echo "⚠️  Could not add to vector database"
+            if [[ -f "${context_dir}/PRIORITIES.md" ]]; then
+                python3 ${ISA_ROOT}/tools/chunk_and_embed.py "${context_dir}/PRIORITIES.md" 2>/dev/null && echo "✅ Added PRIORITIES.md to vector database" || echo "⚠️  Could not add PRIORITIES.md to vector database"
+            fi
+            
+            # Switch to context if requested
+            if [[ "${should_switch}" == "true" ]]; then
+                echo "🔄 Switching to context: ${context_name}"
+                export ISA_CURRENT_CONTEXT="${context_name}"
+                echo "${context_name}" > "${ISA_CONFIG}/.current_context"
+                echo "🎯 Current context: ${context_name}"
+            fi
+            
+            echo ""
+            echo "💡 Next steps:"
+            echo "  isa edit     # Edit the new context files"
+            if [[ "${should_switch}" != "true" ]]; then
+                echo "  isa push ${context_name}    # Switch to this context"
+            fi
+            echo "  isa ${context_name}         # Load and view this context"
+            ;;
         help|--help|-h)
             cat <<EOF
 ╔════════════════════════════════════════════════════════════════════╗
@@ -471,6 +624,7 @@ COMMANDS:
   todo|todos          View all TODO items
   edit                Edit your priorities
   contexts|list       List all available contexts
+  new <name> [type]   Create new context (people/places/things)
   status              Show ISA status dashboard
   search <query>      Search across all contexts
   update              Update ISA system from git
@@ -545,6 +699,13 @@ EXAMPLES:
   isa analyze urgent                        # AI analysis of urgent items
   computer suggest current                  # AI suggestions for current project
   isa ai-status                             # Check AI integration
+  
+  isa new john-smith                        # Create new person context
+  isa new aws-production places             # Create new place context
+  isa new kubernetes-cluster things         # Create new thing context
+  isa new team-lead --switch                # Create and switch to context
+  computer create new context alice         # Natural language creation
+  computer make new context project-x places # Natural language with type
   
   computer show stats                       # Imperative → isa ctx-stats
   computer are the services healthy         # Natural language → isa ctx-health
@@ -624,7 +785,7 @@ computer() {
         drive-mount|gdrive-mount|mount-drive|drive-unmount|gdrive-unmount|unmount-drive|\
         drive-status|gdrive-status|drive-list|gdrive-list|list-drives|drive-setup|gdrive-setup|\
         sub-create|subcreate|sub-list|sublist|sub-info|subinfo|sub-delete|subdelete|\
-        sub-sync|subsync|sub-cleanup|subcleanup)
+        sub-sync|subsync|sub-cleanup|subcleanup|new|create)
             # Known ISA command, pass through
             isa "$@"
             ;;
