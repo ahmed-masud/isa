@@ -87,12 +87,53 @@ isa() {
             ${EDITOR:-vim} ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md
             ;;
         contexts|list)
+            # Read current context
+            local current_context=""
+            if [[ -f "${ISA_CONFIG}/.current_context" ]]; then
+                current_context=$(cat "${ISA_CONFIG}/.current_context" 2>/dev/null | tr -d '\0\n\r')
+            fi
+            
             echo "Available contexts:"
+            if [[ -n "${current_context}" ]]; then
+                echo "🎯 Current: ${current_context}"
+            fi
             echo ""
             for type in people places things; do
                 if [[ -d "${ISA_CONTEXTS}/${type}" ]]; then
                     echo "📂 ${type}:"
-                    exa --time-style=long-iso --git -g -1 "${ISA_CONTEXTS}/${type}" 2>/dev/null | sed 's/^/  - /' || ls -1 "${ISA_CONTEXTS}/${type}" 2>/dev/null | sed 's/^/  - /'
+                    # List contexts with current context indicator
+                    if command -v exa >/dev/null 2>&1; then
+                        for ctx in ${ISA_CONTEXTS}/${type}/*(/N); do
+                            local ctx_name=$(basename "$ctx")
+                            if [[ "${ctx_name}" = "${current_context}" ]]; then
+                                echo "  ➤ ${ctx_name} 🎯 (current)"
+                            else
+                                echo "  - ${ctx_name}"
+                            fi
+                            # Handle symlinks
+                            if [[ -L "$ctx" ]]; then
+                                local link_target=$(readlink "$ctx")
+                                echo "    └─ → ${link_target}"
+                            fi
+                        done
+                    else
+                        # Fallback for systems without exa
+                        for ctx in ${ISA_CONTEXTS}/${type}/*/; do
+                            if [[ -d "$ctx" ]]; then
+                                local ctx_name=$(basename "$ctx")
+                                if [[ "${ctx_name}" = "${current_context}" ]]; then
+                                    echo "  ➤ ${ctx_name} 🎯 (current)"
+                                else
+                                    echo "  - ${ctx_name}"
+                                fi
+                                # Handle symlinks
+                                if [[ -L "${ctx%/}" ]]; then
+                                    local link_target=$(readlink "${ctx%/}")
+                                    echo "    └─ → ${link_target}"
+                                fi
+                            fi
+                        done
+                    fi
                 fi
             done
             ;;
