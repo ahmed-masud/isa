@@ -225,11 +225,24 @@ isa() {
         context-sync|ctx-sync)
             echo "🔄 Processing contexts into vector database..."
             local count=0
+            
+            # Process regular contexts
             for file in $(find ${ISA_CONTEXTS} -name "*.md" -type f); do
                 echo "  Processing: ${file##*/}"
                 python3 ${ISA_ROOT}/tools/chunk_and_embed.py "$file" 2>/dev/null && ((count++))
             done
-            echo "✅ Processed $count context files"
+            
+            # Process sub-contexts
+            local sub_contexts_dir="${ISA_CONFIG}/sub-contexts"
+            if [[ -d "${sub_contexts_dir}" ]]; then
+                echo "🎨 Processing blended contexts..."
+                for file in $(find "${sub_contexts_dir}" -name "*.md" -type f); do
+                    echo "  Processing blended: ${file##*/}"
+                    python3 ${ISA_ROOT}/tools/chunk_and_embed.py "$file" 2>/dev/null && ((count++))
+                done
+            fi
+            
+            echo "✅ Processed $count context files (including blended contexts)"
             ;;
         context-stats|ctx-stats)
             echo "📊 Vector Database Statistics"

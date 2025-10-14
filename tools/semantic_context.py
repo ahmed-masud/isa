@@ -24,7 +24,7 @@ class SemanticContextRetriever:
         self.service_url = vector_service_url
         
     def get_relevant_contexts(self, query: str, context_type: Optional[str] = None, 
-                            n_results: int = 3) -> Dict[str, Any]:
+                            n_results: int = 3, include_blended: bool = True) -> Dict[str, Any]:
         """Retrieve semantically relevant contexts for a query"""
         try:
             search_payload = {
@@ -35,6 +35,10 @@ class SemanticContextRetriever:
             
             if context_type:
                 search_payload["context_type"] = context_type
+            
+            # Add blended context support
+            if include_blended:
+                search_payload["include_blended"] = True
                 
             response = requests.post(
                 f"{self.service_url}/search",
@@ -73,11 +77,12 @@ class SemanticContextRetriever:
                 source = metadata.get("source", "unknown")
                 section = metadata.get("section_title", metadata.get("section", ""))
                 
-                # Format context piece
+                # Enhanced formatting for blended contexts
+                source_info = self._format_source_info(metadata, source)
                 if section and section != "header":
-                    context_piece = f"From {source} ({section}):\n{text}\n"
+                    context_piece = f"From {source_info} ({section}):\n{text}\n"
                 else:
-                    context_piece = f"From {source}:\n{text}\n"
+                    context_piece = f"From {source_info}:\n{text}\n"
                 
                 # Check if adding this would exceed limit
                 if total_length + len(context_piece) > max_context_length:
@@ -115,12 +120,19 @@ Please provide a helpful response that takes into account the context provided a
             
             formatted_results = []
             for result in results.get("results", []):
+                metadata = result.get("metadata", {})
+                source = metadata.get("source", "unknown")
+                
                 formatted_result = {
                     "text": result.get("text", ""),
-                    "source": result.get("metadata", {}).get("source", "unknown"),
-                    "section": result.get("metadata", {}).get("section_title", ""),
-                    "context_type": result.get("metadata", {}).get("context_type", "general"),
-                    "relevance_score": result.get("score", 0.0)
+                    "source": source,
+                    "source_formatted": self._format_source_info(metadata, source),
+                    "section": metadata.get("section_title", ""),
+                    "context_type": metadata.get("context_type", "general"),
+                    "relevance_score": result.get("score", 0.0),
+                    "is_blended": metadata.get("is_sub_context", False),
+                    "blended_from": metadata.get("blended_from", ""),
+                    "sub_context_name": metadata.get("sub_context_name", "")
                 }
                 formatted_results.append(formatted_result)
             
@@ -147,6 +159,17 @@ Please provide a helpful response that takes into account the context provided a
         except Exception as e:
             logger.error(f"Error getting service stats: {e}")
             return {"error": str(e)}
+    
+    def _format_source_info(self, metadata: Dict[str, Any], source: str) -> str:
+        """Format source information with blended context details"""
+        if metadata.get('is_sub_context'):
+            sub_context_name = metadata.get('sub_context_name', 'unknown')
+            blended_from = metadata.get('blended_from', 'unknown')
+            original_source = metadata.get('original_source', source)
+            
+            return f"🎨 {sub_context_name} (blended: {original_source} from {blended_from})"
+        else:
+            return source
 
 def main():
     parser = argparse.ArgumentParser(description="Semantic context retrieval for ISA AI commands")
