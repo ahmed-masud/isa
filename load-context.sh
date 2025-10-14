@@ -17,9 +17,10 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🔍 Loading context: ${CONTEXT_NAME}${NC}"
 echo ""
 
-# Search for context in people, places, things
+# Search for context in people, places, things, and sub-contexts
 FOUND=false
 CONTEXT_PATH=""
+SUB_CONTEXT_DIR="$HOME/.config/isa/sub-contexts"
 
 for TYPE in people places things; do
     if [ -d "$CONTEXT_DIR/$TYPE/$CONTEXT_NAME" ]; then
@@ -32,6 +33,15 @@ for TYPE in people places things; do
     fi
 done
 
+# If not found in standard locations, check sub-contexts
+if [ "$FOUND" = false ] && [ -d "$SUB_CONTEXT_DIR/$CONTEXT_NAME" ]; then
+    FOUND=true
+    CONTEXT_PATH="$SUB_CONTEXT_DIR/$CONTEXT_NAME"
+    echo -e "${GREEN}✓ Found context in: sub-contexts${NC}"
+    echo -e "${BLUE}  Location: $CONTEXT_PATH${NC}"
+    echo ""
+fi
+
 if [ "$FOUND" = false ]; then
     echo -e "${RED}✗ Context not found: $CONTEXT_NAME${NC}"
     echo ""
@@ -42,6 +52,10 @@ if [ "$FOUND" = false ]; then
             ls -1 "$CONTEXT_DIR/$TYPE" 2>/dev/null | sed 's/^/    /'
         fi
     done
+    if [ -d "$SUB_CONTEXT_DIR" ]; then
+        echo -e "${YELLOW}  sub-contexts:${NC}"
+        ls -1 "$SUB_CONTEXT_DIR" 2>/dev/null | sed 's/^/    /'
+    fi
     exit 1
 fi
 

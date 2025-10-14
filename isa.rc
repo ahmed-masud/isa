@@ -136,6 +136,31 @@ isa() {
                     fi
                 fi
             done
+            
+            # List sub-contexts
+            local sub_contexts_dir="${ISA_CONFIG}/sub-contexts"
+            if [[ -d "${sub_contexts_dir}" ]] && [[ $(find "${sub_contexts_dir}" -maxdepth 1 -type d | wc -l) -gt 1 ]]; then
+                echo "📂 sub-contexts:"
+                for sub_ctx in ${sub_contexts_dir}/*/; do
+                    if [[ -d "$sub_ctx" ]]; then
+                        local sub_ctx_name=$(basename "$sub_ctx")
+                        if [[ "${sub_ctx_name}" = "${current_context}" ]]; then
+                            echo "  ➤ ${sub_ctx_name} 🎯 (current)"
+                        else
+                            echo "  - ${sub_ctx_name}"
+                        fi
+                        
+                        # Show parent info for sub-contexts
+                        local info_file="${sub_ctx}/.sub-context-info.json"
+                        if [[ -f "${info_file}" ]]; then
+                            local parents=$(python3 -c "import json; data=json.load(open('${info_file}')); print(' + '.join([p['name'] for p in data.get('parent_contexts', [])]))" 2>/dev/null) 
+                            if [[ -n "${parents}" ]]; then
+                                echo "    └─ 🎨 blended from: ${parents}"
+                            fi
+                        fi
+                    fi
+                done
+            fi
             ;;
         status)
             echo "╔════════════════════════════════════════════════════════╗"
@@ -343,6 +368,76 @@ isa() {
             fi
             python3 ${ISA_ROOT}/tools/google_drive_integration.py setup "$1"
             ;;
+        sub-create|subcreate)
+            if [[ -z "$2" ]]; then
+                echo "Usage: isa sub-create <sub-name> <parent1> [parent2 ...] [--description='text']"
+                echo "Examples:"
+                echo "  isa sub-create resiliate-v2 resiliate                   # Single parent"
+                echo "  isa sub-create mixed-project resiliate cybernetic-engram  # Multiple parents"
+                echo "  isa sub-create test ahmed-masud resiliate --description='Test blend'"
+                return 1
+            fi
+            # Parse arguments to separate parents from description
+            local sub_name="$1"
+            shift
+            local parents=()
+            local description=""
+            
+            # Collect all arguments that aren't the description flag
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --description=*)
+                        description="${1#--description=}"
+                        shift
+                        ;;
+                    --description)
+                        shift
+                        description="$1"
+                        shift
+                        ;;
+                    *)
+                        parents+=("$1")
+                        shift
+                        ;;
+                esac
+            done
+            
+            # Build the command
+            local cmd_args=(create "$sub_name")
+            cmd_args+=("${parents[@]}")
+            if [[ -n "$description" ]]; then
+                cmd_args+=(--description="$description")
+            fi
+            
+            python3 ${ISA_ROOT}/tools/sub_context_manager.py "${cmd_args[@]}"
+            ;;
+        sub-list|sublist)
+            python3 ${ISA_ROOT}/tools/sub_context_manager.py list
+            ;;
+        sub-info|subinfo)
+            if [[ -z "$1" ]]; then
+                echo "Usage: isa sub-info <sub-context-name>"
+                return 1
+            fi
+            python3 ${ISA_ROOT}/tools/sub_context_manager.py info "$1"
+            ;;
+        sub-delete|subdelete)
+            if [[ -z "$1" ]]; then
+                echo "Usage: isa sub-delete <sub-context-name> [--force]"
+                return 1
+            fi
+            python3 ${ISA_ROOT}/tools/sub_context_manager.py delete "$@"
+            ;;
+        sub-sync|subsync)
+            if [[ -z "$1" ]]; then
+                echo "Usage: isa sub-sync <sub-context-name>"
+                return 1
+            fi
+            python3 ${ISA_ROOT}/tools/sub_context_manager.py sync "$1"
+            ;;
+        sub-cleanup|subcleanup)
+            python3 ${ISA_ROOT}/tools/sub_context_manager.py cleanup
+            ;;
         help|--help|-h)
             cat <<EOF
 ╔════════════════════════════════════════════════════════════════════╗
@@ -405,6 +500,16 @@ GOOGLE DRIVE COMMANDS:
   
   Aliases: gdrive-mount, mount-drive, gdrive-unmount, etc.
 
+SUB-CONTEXT COMMANDS:
+  sub-create <name> <parent1> [parent2...]  Create sub-context from multiple parents (blended)
+  sub-list                                  List all sub-contexts
+  sub-info <name>                          Show sub-context details and blending info
+  sub-delete <name>                        Delete sub-context (safe, doesn't affect parents)
+  sub-sync <name>                          Re-sync sub-context from all parents (overwrites)
+  sub-cleanup                              Clean up orphaned sub-contexts
+  
+  Aliases: subcreate, sublist, subinfo, subdelete, subsync, subcleanup
+
 ALIASES:
   isa-me              View priorities
   isa-urgent          Show urgent items
@@ -448,6 +553,12 @@ EXAMPLES:
   isa drive-mount ahmed-masud               # Mount specific context drive
   isa drive-status                          # Show Google Drive status
   computer mount google drive               # Natural language mount
+  
+  isa sub-create experiment-1 resiliate     # Create sub-context from single parent
+  isa sub-create mixed-proj resiliate ahmed-masud  # Blend multiple parents
+  isa sub-list                              # List all sub-contexts and blending info
+  isa sub-delete experiment-1               # Delete when done (safe)
+  computer create sub-context test ahmed-masud resiliate  # Natural language blended sub-context
 
 LOCATION:
   Root: ${ISA_ROOT}
@@ -498,7 +609,9 @@ computer() {
         push|context-push|pop|context-pop|stack|context-stack|peek|context-peek|\
         breadcrumbs|context-breadcrumbs|stack-clear|context-clear|stack-history|context-history|\
         drive-mount|gdrive-mount|mount-drive|drive-unmount|gdrive-unmount|unmount-drive|\
-        drive-status|gdrive-status|drive-list|gdrive-list|list-drives|drive-setup|gdrive-setup)
+        drive-status|gdrive-status|drive-list|gdrive-list|list-drives|drive-setup|gdrive-setup|\
+        sub-create|subcreate|sub-list|sublist|sub-info|subinfo|sub-delete|subdelete|\
+        sub-sync|subsync|sub-cleanup|subcleanup)
             # Known ISA command, pass through
             isa "$@"
             ;;

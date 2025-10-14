@@ -85,10 +85,17 @@ class ContextStack:
     
     def _find_context_path(self, context_name: str) -> Optional[Tuple[str, str]]:
         """Find the path and type for a context"""
+        # First check standard context directories
         for context_type in ['people', 'places', 'things']:
             context_path = self.contexts_dir / context_type / context_name
             if context_path.exists():
                 return str(context_path), context_type
+        
+        # Then check sub-contexts directory
+        sub_contexts_dir = self.config_dir / 'sub-contexts' / context_name
+        if sub_contexts_dir.exists():
+            return str(sub_contexts_dir), 'sub-contexts'
+        
         return None
     
     def _load_context_with_script(self, context_name: str) -> bool:
