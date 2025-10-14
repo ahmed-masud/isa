@@ -439,6 +439,73 @@ class CommandIntentMapper:
                 'drive mounts'
             ],
             'description': 'Show Google Drive mount status'
+        },
+        'sub-create': {
+            'aliases': ['subcreate'],
+            'patterns': [
+                'create sub context',
+                'create sub-context',
+                'make sub context',
+                'blend contexts',
+                'create experimental context',
+                'create temporary context',
+                'mix contexts',
+                'combine contexts'
+            ],
+            'description': 'Create sub-context from one or more parent contexts (blended)',
+            'requires_arg': True,
+            'complex_args': True
+        },
+        'sub-list': {
+            'aliases': ['sublist'],
+            'patterns': [
+                'list sub contexts',
+                'list sub-contexts',
+                'show sub contexts',
+                'show sub-contexts',
+                'list experimental contexts',
+                'show blended contexts'
+            ],
+            'description': 'List all sub-contexts and their blending information'
+        },
+        'sub-info': {
+            'aliases': ['subinfo'],
+            'patterns': [
+                'sub context info',
+                'sub-context info',
+                'show sub context details',
+                'info about sub context',
+                'sub context details',
+                'blending info'
+            ],
+            'description': 'Show sub-context details and blending information',
+            'requires_arg': True
+        },
+        'sub-delete': {
+            'aliases': ['subdelete'],
+            'patterns': [
+                'delete sub context',
+                'delete sub-context',
+                'remove sub context',
+                'remove sub-context',
+                'clean up sub context',
+                'delete experimental context'
+            ],
+            'description': 'Delete sub-context safely (doesn\'t affect parents)',
+            'requires_arg': True
+        },
+        'sub-sync': {
+            'aliases': ['subsync'],
+            'patterns': [
+                'sync sub context',
+                'sync sub-context',
+                'update sub context',
+                'refresh sub context',
+                're-blend sub context',
+                'sync from parents'
+            ],
+            'description': 'Re-sync sub-context from all its parents (overwrites changes)',
+            'requires_arg': True
         }
     }
     
