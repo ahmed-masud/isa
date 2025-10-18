@@ -121,4 +121,7 @@ if [ -f "$CONTEXT_PATH/PRIORITIES.md" ]; then
     fi
 fi
 
+# Update current context tracking for stack management
+echo "$CONTEXT_NAME" > "$HOME/.config/isa/.current_context"
+
 echo -e "${GREEN}✓ Context loaded successfully${NC}"
