@@ -50,6 +50,17 @@ export ISA_BIN="${HOME}/.local/bin"
 [[ ! -d "${ISA_CONTEXTS}" ]] && mkdir -p "${ISA_CONTEXTS}"
 [[ ! -d "${ISA_BIN}" ]] && mkdir -p "${ISA_BIN}"
 
+# Service Configuration - can be overridden in ~/.config/isa/config
+export ISA_OLLAMA_HOST="${ISA_OLLAMA_HOST:-192.168.1.161}"
+export ISA_OLLAMA_PORT="${ISA_OLLAMA_PORT:-11434}"
+export ISA_VECTOR_HOST="${ISA_VECTOR_HOST:-192.168.1.161}"
+export ISA_VECTOR_PORT="${ISA_VECTOR_PORT:-8000}"
+export ISA_MODELS_DEV_API="${ISA_MODELS_DEV_API:-https://api.models.dev/v1}"
+
+# Derived URLs for convenience
+export ISA_OLLAMA_URL="http://${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}"
+export ISA_VECTOR_URL="http://${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}"
+
 # ============================================================================
 # ISA CORE ALIASES
 # ============================================================================
@@ -112,6 +123,144 @@ isa() {
             ;;
         edit)
             ${EDITOR:-vim} ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md
+            ;;
+	      show)
+            # Enhanced show command with intelligent context parsing
+            local show_args="$*"
+            
+            if [[ -z "$show_args" ]]; then
+                echo "🤔 What would you like me to show?"
+                echo ""
+                echo "📋 Personal & Tasks:"
+                echo "  isa show priorities    # Your personal priorities"
+                echo "  isa show urgent       # Urgent items"
+                echo "  isa show week         # This week's tasks"
+                echo "  isa show todo         # Todo items"
+                echo ""
+                echo "🔧 Context & System:"
+                echo "  isa show contexts     # Available contexts"
+                echo "  isa show config       # System configuration" 
+                echo "  isa show status       # System status"
+		echo "  isa show services     # AI & Database services"
+                return 0
+            fi
+            
+            local args_lower=$(echo "$show_args" | tr '[:upper:]' '[:lower:]')
+            case "$args_lower" in
+                priorities|priority)
+                    isa me
+                    ;;
+                urgent)
+                    isa urgent
+                    ;;
+                week|weekly)
+                    isa week
+                    ;;
+                todo|todos)
+                    isa todo
+                    ;;
+                contexts)
+                    isa contexts
+                    ;;
+                config|configuration)
+                    echo "🔧 ISA Configuration:"
+                    echo "ISA_ROOT: ${ISA_ROOT}"
+                    echo "ISA_CONFIG: ${ISA_CONFIG}" 
+                    echo "ISA_CONTEXTS: ${ISA_CONTEXTS}"
+                    ;;
+                status|health)
+                    echo "📊 ISA System Status"
+                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    echo "🏠 Environment:"
+                    echo "  ISA Root: ${ISA_ROOT}"
+                    echo "  Current Directory: $(pwd)"
+                    echo ""
+                    
+                    echo "🤖 AI Services:"
+                    # Check Ollama server
+                    if command -v nc >/dev/null 2>&1; then
+                        if nc -z -w3 192.168.1.161 11434 2>/dev/null; then
+                            echo "  ✅ Ollama Server (192.168.1.161:11434)"
+                        else
+                            echo "  ❌ Ollama Server (192.168.1.161:11434) - Not reachable"
+                        fi
+                    else
+                        echo "  ❓ Ollama Server (192.168.1.161:11434) - Cannot check"
+                    fi
+                    
+                    # Check Models.dev (external)
+                    echo "  🌐 Models.dev API (https://api.models.dev/v1) - External service"
+                    
+                    echo ""
+                    echo "🗂️  Vector Database:"
+                    # Check vector service
+                    if command -v nc >/dev/null 2>&1; then
+                        if nc -z -w3 192.168.1.161 8000 2>/dev/null; then
+                            echo "  ✅ Vector Service (192.168.1.161:8000)"
+                        else
+                            echo "  ❌ Vector Service (192.168.1.161:8000) - Not reachable"
+                        fi
+                    else
+                        echo "  ❓ Vector Service (192.168.1.161:8000) - Cannot check"
+                    fi
+                    
+                    echo ""
+                    echo "🔧 System Tools:"
+                    if command -v python3 >/dev/null; then
+                        echo "  ✅ Python3 available"
+                    else
+                        echo "  ❌ Python3 not found"
+                    fi
+                    
+                    if [[ -f "${ISA_ROOT}/tools/command_intent.py" ]]; then
+                        echo "  ✅ Command intent system available"
+                    else
+                        echo "  ❌ Command intent system missing"
+                    fi
+                    
+                    if command -v nc >/dev/null; then
+                        echo "  ✅ Network connectivity check (nc) available"
+                    else
+                        echo "  ⚠️  Network connectivity check (nc) not available"
+                    fi
+                    ;;
+         	services)
+                    echo "🚀 ISA Service Status"
+                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    echo ""
+                    echo "🤖 AI Services:"
+                    # Check Ollama server
+                    if command -v nc >/dev/null 2>&1; then
+                        if nc -z -w3 192.168.1.161 11434 2>/dev/null; then
+                            echo "  ✅ Ollama Server (192.168.1.161:11434)"
+                        else
+                            echo "  ❌ Ollama Server (192.168.1.161:11434) - Not reachable"
+                        fi
+                    else
+                        echo "  ❓ Ollama Server (192.168.1.161:11434) - Cannot check"
+                    fi
+                    
+                    echo "  🌐 Models.dev API (https://api.models.dev/v1) - External service"
+                    echo ""
+                    
+                    echo "🗂️  Vector Database:"
+                    # Check vector service
+                    if command -v nc >/dev/null 2>&1; then
+                        if nc -z -w3 192.168.1.161 8000 2>/dev/null; then
+                            echo "  ✅ Vector Service (192.168.1.161:8000)"
+                        else
+                            echo "  ❌ Vector Service (192.168.1.161:8000) - Not reachable"
+                        fi
+                    else
+                        echo "  ❓ Vector Service (192.168.1.161:8000) - Cannot check"
+                    fi
+                    ;;
+                *)
+                    echo "🤔 Not sure what to show: '$show_args'"
+                    echo "Try: priorities, urgent, week, todo, contexts, config, status"
+                    return 1
+                    ;;
+            esac
             ;;
         contexts|list)
             # Read current context
