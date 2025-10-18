@@ -518,32 +518,63 @@ isa() {
             if [[ -z "$1" ]]; then
                 echo "Usage: isa learn <file-or-text>"
                 echo "Examples:"
-                echo "  isa learn /path/to/document.md      # Copy file to context"
+                echo "  isa learn /path/to/document.pdf     # Learn from PDF"
+                echo "  isa learn /path/to/report.docx      # Learn from Word document"
+                echo "  isa learn /path/to/data.xlsx        # Learn from Excel spreadsheet"
+                echo "  isa learn /path/to/slides.pptx      # Learn from PowerPoint"
+                echo "  isa learn /path/to/notes.md         # Learn from Markdown"
+                echo "  isa learn /path/to/config.json      # Learn from JSON/YAML/XML"
                 echo "  isa learn 'Important note content'  # Create note from text"
+                echo ""
+                echo "Supported formats: PDF, DOCX, XLSX, PPTX, ODT, RTF, TXT, MD, HTML, CSV, JSON, XML, YAML"
                 return 1
             fi
             
             # Check if it's a file
             if [[ -f "$1" ]]; then
+                local source_file="$1"
                 local filename=$(basename "$1")
-                local dest_file="${context_dir}/${filename}"
                 
                 echo "📚 Learning from file: $1"
                 echo "📍 Context: ${current_context}"
                 
-                # Copy file to context
-                cp "$1" "${dest_file}" || {
-                    echo "❌ Failed to copy file to context"
-                    return 1
-                }
+                # Use universal document processor to handle any file type
+                echo "🔍 Processing document..."
+                local processed_file=$(python3 ${ISA_ROOT}/tools/universal_document_processor.py "${source_file}" --context "${context_dir}" 2>&1)
+                local processor_exit_code=$?
                 
-                echo "✅ Copied to: ${dest_file}"
-                
-                # Add to vector database
-                echo "📊 Adding to vector database..."
-                python3 ${ISA_ROOT}/tools/chunk_and_embed.py "${dest_file}" 2>/dev/null && \
-                    echo "✅ Successfully learned from ${filename}" || \
-                    echo "⚠️  File copied but failed to add to vector database"
+                if [[ $processor_exit_code -eq 0 ]]; then
+                    # Extract the markdown file path from the output
+                    local markdown_file=$(echo "${processed_file}" | grep "Successfully processed:" | sed 's/.*Successfully processed: //')
+                    
+                    if [[ -n "${markdown_file}" && -f "${markdown_file}" ]]; then
+                        echo "✅ Document processed and converted to markdown"
+                        
+                        # Add to vector database
+                        echo "📊 Adding to vector database..."
+                        python3 ${ISA_ROOT}/tools/chunk_and_embed.py "${markdown_file}" 2>/dev/null && \
+                            echo "✅ Successfully learned from ${filename}" || \
+                            echo "⚠️  Document processed but failed to add to vector database"
+                    else
+                        echo "⚠️  Document processed but could not find output file"
+                        echo "${processed_file}"
+                    fi
+                else
+                    echo "❌ Failed to process document:"
+                    echo "${processed_file}"
+                    
+                    # Fallback: try the old method for markdown files
+                    if [[ "${source_file}" =~ \.(md|txt)$ ]]; then
+                        echo "🔄 Falling back to direct copy for text/markdown file..."
+                        local dest_file="${context_dir}/${filename}"
+                        cp "${source_file}" "${dest_file}" && \
+                            python3 ${ISA_ROOT}/tools/chunk_and_embed.py "${dest_file}" 2>/dev/null && \
+                            echo "✅ Successfully learned from ${filename} (fallback method)" || \
+                            echo "❌ Fallback method also failed"
+                    else
+                        return 1
+                    fi
+                fi
             else
                 # Treat as text content
                 local timestamp=$(date '+%Y%m%d-%H%M%S')
