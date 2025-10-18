@@ -179,13 +179,13 @@ isa() {
                     echo "🤖 AI Services:"
                     # Check Ollama server
                     if command -v nc >/dev/null 2>&1; then
-                        if nc -z -w3 192.168.1.161 11434 2>/dev/null; then
-                            echo "  ✅ Ollama Server (192.168.1.161:11434)"
+                        if nc -z -w3 ${ISA_OLLAMA_HOST} ${ISA_OLLAMA_PORT} 2>/dev/null; then
+                            echo "  ✅ Ollama Server (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT})"
                         else
-                            echo "  ❌ Ollama Server (192.168.1.161:11434) - Not reachable"
+                            echo "  ❌ Ollama Server (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}) - Not reachable"
                         fi
                     else
-                        echo "  ❓ Ollama Server (192.168.1.161:11434) - Cannot check"
+                        echo "  ❓ Ollama Server (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}) - Cannot check"
                     fi
                     
                     # Check Models.dev (external)
@@ -195,13 +195,13 @@ isa() {
                     echo "🗂️  Vector Database:"
                     # Check vector service
                     if command -v nc >/dev/null 2>&1; then
-                        if nc -z -w3 192.168.1.161 8000 2>/dev/null; then
-                            echo "  ✅ Vector Service (192.168.1.161:8000)"
+                        if nc -z -w3 ${ISA_VECTOR_HOST} ${ISA_VECTOR_PORT} 2>/dev/null; then
+                            echo "  ✅ Vector Service (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT})"
                         else
-                            echo "  ❌ Vector Service (192.168.1.161:8000) - Not reachable"
+                            echo "  ❌ Vector Service (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}) - Not reachable"
                         fi
                     else
-                        echo "  ❓ Vector Service (192.168.1.161:8000) - Cannot check"
+                        echo "  ❓ Vector Service (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}) - Cannot check"
                     fi
                     
                     echo ""
@@ -231,13 +231,13 @@ isa() {
                     echo "🤖 AI Services:"
                     # Check Ollama server
                     if command -v nc >/dev/null 2>&1; then
-                        if nc -z -w3 192.168.1.161 11434 2>/dev/null; then
-                            echo "  ✅ Ollama Server (192.168.1.161:11434)"
+                        if nc -z -w3 ${ISA_OLLAMA_HOST} ${ISA_OLLAMA_PORT} 2>/dev/null; then
+                            echo "  ✅ Ollama Server (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT})"
                         else
-                            echo "  ❌ Ollama Server (192.168.1.161:11434) - Not reachable"
+                            echo "  ❌ Ollama Server (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}) - Not reachable"
                         fi
                     else
-                        echo "  ❓ Ollama Server (192.168.1.161:11434) - Cannot check"
+                        echo "  ❓ Ollama Server (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}) - Cannot check"
                     fi
                     
                     echo "  🌐 Models.dev API (https://api.models.dev/v1) - External service"
@@ -246,13 +246,13 @@ isa() {
                     echo "🗂️  Vector Database:"
                     # Check vector service
                     if command -v nc >/dev/null 2>&1; then
-                        if nc -z -w3 192.168.1.161 8000 2>/dev/null; then
-                            echo "  ✅ Vector Service (192.168.1.161:8000)"
+                        if nc -z -w3 ${ISA_VECTOR_HOST} ${ISA_VECTOR_PORT} 2>/dev/null; then
+                            echo "  ✅ Vector Service (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT})"
                         else
-                            echo "  ❌ Vector Service (192.168.1.161:8000) - Not reachable"
+                            echo "  ❌ Vector Service (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}) - Not reachable"
                         fi
                     else
-                        echo "  ❓ Vector Service (192.168.1.161:8000) - Cannot check"
+                        echo "  ❓ Vector Service (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}) - Cannot check"
                     fi
                     ;;
                 *)
@@ -279,7 +279,8 @@ isa() {
                     echo "📂 ${type}:"
                     # List contexts with current context indicator
                     if command -v exa >/dev/null 2>&1; then
-                        for ctx in ${ISA_CONTEXTS}/${type}/*(/N); do
+                        for ctx in "${ISA_CONTEXTS}/${type}"/*; do
+	    		    [[ -d "$ctx" ]] || continue
                             local ctx_name=$(basename "$ctx")
                             if [[ "${ctx_name}" = "${current_context}" ]]; then
                                 echo "  ➤ ${ctx_name} 🎯 (current)"
@@ -294,7 +295,7 @@ isa() {
                         done
                     else
                         # Fallback for systems without exa
-                        for ctx in ${ISA_CONTEXTS}/${type}/*/; do
+                        for ctx in "${ISA_CONTEXTS}/${type}"/*; do
                             if [[ -d "$ctx" ]]; then
                                 local ctx_name=$(basename "$ctx")
                                 if [[ "${ctx_name}" = "${current_context}" ]]; then
@@ -423,7 +424,7 @@ isa() {
         context-stats|ctx-stats)
             echo "📊 Vector Database Statistics"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            curl -s http://192.168.1.161:8000/stats 2>/dev/null | python3 -c "import json, sys; data=json.load(sys.stdin); print(f'  Total Chunks: {data.get(\"total_chunks\", 0)}\n  Trained: {data.get(\"is_trained\", False)}\n  Storage: {data.get(\"storage_dir\", \"unknown\")}')" || echo "  ❌ Vector service not available"
+            curl -s http://${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}/stats 2>/dev/null | python3 -c "import json, sys; data=json.load(sys.stdin); print(f'  Total Chunks: {data.get(\"total_chunks\", 0)}\n  Trained: {data.get(\"is_trained\", False)}\n  Storage: {data.get(\"storage_dir\", \"unknown\")}')" || echo "  ❌ Vector service not available"
             ;;
         context-search|ctx-search)
             if [[ -z "$1" ]]; then
@@ -439,15 +440,15 @@ isa() {
             ;;
         context-rebuild|ctx-rebuild)
             echo "🔨 Rebuilding vector database index..."
-            curl -s -X POST http://192.168.1.161:8000/rebuild 2>/dev/null | python3 -c "import json, sys; data=json.load(sys.stdin); print(f'✅ Rebuilt: {data.get(\"total_chunks\", 0)} chunks')" || echo "❌ Rebuild failed"
+            curl -s -X POST http://${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}/rebuild 2>/dev/null | python3 -c "import json, sys; data=json.load(sys.stdin); print(f'✅ Rebuilt: {data.get(\"total_chunks\", 0)} chunks')" || echo "❌ Rebuild failed"
             ;;
         context-health|ctx-health)
             echo "🏥 Checking semantic context services..."
             echo ""
             
             # Check vector database
-            echo "Vector Database (192.168.1.161:8000):"
-            if curl -s http://192.168.1.161:8000/health 2>/dev/null | grep -q "healthy"; then
+            echo "Vector Database (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}):"
+            if curl -s http://${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}/health 2>/dev/null | grep -q "healthy"; then
                 echo "  ✅ Healthy"
             else
                 echo "  ❌ Unavailable"
@@ -455,8 +456,8 @@ isa() {
             
             # Check Ollama
             echo ""
-            echo "Ollama AI (192.168.1.161:11434):"
-            if curl -s http://192.168.1.161:11434/api/tags 2>/dev/null | grep -q "models"; then
+            echo "Ollama AI (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}):"
+            if curl -s http://${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}/api/tags 2>/dev/null | grep -q "models"; then
                 echo "  ✅ Healthy"
             else
                 echo "  ❌ Unavailable"
@@ -656,7 +657,7 @@ EOF
             
             # Rebuild vector database to remove the content
             echo "🔄 Rebuilding vector database to remove learned content..."
-            curl -s -X POST http://192.168.1.161:8000/rebuild 2>/dev/null >/dev/null
+            curl -s -X POST http://${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}/rebuild 2>/dev/null >/dev/null
             echo "📊 Re-syncing contexts..."
             isa context-sync >/dev/null 2>&1
             echo "✅ Successfully unlearned ${filename}"
@@ -1184,7 +1185,8 @@ _isa_load_completion() {
     local contexts=()
     for type in people places things; do
         if [[ -d "${ISA_CONTEXTS}/${type}" ]]; then
-            for ctx in ${ISA_CONTEXTS}/${type}/*(/); do
+            for ctx in "${ISA_CONTEXTS}/${type}/"*; do
+	    	[[ -d "$ctx" ]] || continue
                 contexts+=($(basename ${ctx}))
             done
         fi
