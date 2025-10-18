@@ -50,6 +50,17 @@ export ISA_BIN="${HOME}/.local/bin"
 [[ ! -d "${ISA_CONTEXTS}" ]] && mkdir -p "${ISA_CONTEXTS}"
 [[ ! -d "${ISA_BIN}" ]] && mkdir -p "${ISA_BIN}"
 
+# Service Configuration - can be overridden in ~/.config/isa/config
+export ISA_OLLAMA_HOST="${ISA_OLLAMA_HOST:-192.168.1.161}"
+export ISA_OLLAMA_PORT="${ISA_OLLAMA_PORT:-11434}"
+export ISA_VECTOR_HOST="${ISA_VECTOR_HOST:-192.168.1.161}"
+export ISA_VECTOR_PORT="${ISA_VECTOR_PORT:-8000}"
+export ISA_MODELS_DEV_API="${ISA_MODELS_DEV_API:-https://api.models.dev/v1}"
+
+# Derived URLs for convenience
+export ISA_OLLAMA_URL="http://${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}"
+export ISA_VECTOR_URL="http://${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}"
+
 # ============================================================================
 # ISA CORE ALIASES
 # ============================================================================
