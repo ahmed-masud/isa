@@ -277,10 +277,17 @@ isa() {
             for type in people places things; do
                 if [[ -d "${ISA_CONTEXTS}/${type}" ]]; then
                     echo "📂 ${type}:"
+                    # Check if directory has any contents
+                    local has_contexts=false
                     # List contexts with current context indicator
                     if command -v exa >/dev/null 2>&1; then
+                        # Use portable glob handling
+                        shopt -s nullglob 2>/dev/null || setopt nullglob 2>/dev/null || true
                         for ctx in "${ISA_CONTEXTS}/${type}"/*; do
+                            # Check if glob matched actual files/dirs
+                            [[ -e "$ctx" ]] || break
 	    		    [[ -d "$ctx" ]] || continue
+                            has_contexts=true
                             local ctx_name=$(basename "$ctx")
                             if [[ "${ctx_name}" = "${current_context}" ]]; then
                                 echo "  ➤ ${ctx_name} 🎯 (current)"
@@ -293,10 +300,17 @@ isa() {
                                 echo "    └─ → ${link_target}"
                             fi
                         done
+                        # Reset glob options
+                        shopt -u nullglob 2>/dev/null || unsetopt nullglob 2>/dev/null || true
                     else
                         # Fallback for systems without exa
+                        # Use portable glob handling
+                        shopt -s nullglob 2>/dev/null || setopt nullglob 2>/dev/null || true
                         for ctx in "${ISA_CONTEXTS}/${type}"/*; do
+                            # Check if glob matched actual files/dirs
+                            [[ -e "$ctx" ]] || break
                             if [[ -d "$ctx" ]]; then
+                                has_contexts=true
                                 local ctx_name=$(basename "$ctx")
                                 if [[ "${ctx_name}" = "${current_context}" ]]; then
                                     echo "  ➤ ${ctx_name} 🎯 (current)"
@@ -310,6 +324,12 @@ isa() {
                                 fi
                             fi
                         done
+                        # Reset glob options
+                        shopt -u nullglob 2>/dev/null || unsetopt nullglob 2>/dev/null || true
+                    fi
+                    # Show "none found" message if directory is empty
+                    if [[ "$has_contexts" = "false" ]]; then
+                        echo "  (none found)"
                     fi
                 fi
             done
