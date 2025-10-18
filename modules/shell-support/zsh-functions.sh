@@ -317,14 +317,5 @@ isa_ai_status() {
     fi
 }
 
-# Export functions for bash
-export -f ollama_health_check
-export -f semantic_context_available
-export -f ollama_model_list
-export -f ollama_query_basic
-export -f ollama_query
-export -f ollama_context_query
-export -f isa_ai_ask
-export -f isa_ai_analyze
-export -f isa_ai_suggest
-export -f isa_ai_status
+# Note: In zsh, functions are automatically available to subshells
+# No need to export functions like in bash
