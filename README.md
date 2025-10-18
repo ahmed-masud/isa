@@ -3,6 +3,8 @@
 
 A powerful shell-based assistant that combines priority management, semantic search, and natural language AI to help you stay focused and productive.
 
+🍎 **macOS** | 🐧 **Linux** | 💙 **zsh/bash**
+
 ---
 
 ## 🎯 What is ISA?
@@ -12,9 +14,10 @@ ISA (Intelligent Support Assistant) is your AI-powered command-line assistant th
 - **Talk naturally** to your computer with imperative and conversational commands
 - **Search semantically** through your knowledge base using vector embeddings
 - **Get AI insights** with Ollama integration for intelligent suggestions
+- **Learn and unlearn** by adding files or notes to your contexts
 - **Track command history** for contextual operations (repeat, stop, etc.)
 
-**New in v1.0.0:** Natural language commands, semantic context search, and command history!
+**Latest:** `learn` and `unlearn` commands for dynamic context management!
 
 ---
 
@@ -59,8 +62,8 @@ ISA (Intelligent Support Assistant) is your AI-powered command-line assistant th
 - **Status Notifications**: Urgent deadline alerts
 
 ### Sleep Prevention
-- **macOS caffeinate**: Prevent system sleep during work
-- **Toggle Mode**: Simple on/off with `vdev-awake`
+- **Cross-platform**: Works on macOS (`caffeinate`) and Linux (`systemd-inhibit`)
+- **Toggle Mode**: Simple on/off with `isa-awake`
 - **Timed Mode**: Prevent sleep for specific duration
 - **Command Wrapper**: Run commands without interruption
 
@@ -112,6 +115,7 @@ isa ai-analyze urgent           # AI analysis of urgent items
 | Document | Purpose |
 |----------|---------|
 | **[GETTING-STARTED.md](GETTING-STARTED.md)** | **Complete beginner's guide** 🎓 |
+| **[docs/LINUX-SETUP.md](docs/LINUX-SETUP.md)** | **Linux-specific setup guide** 🐧 |
 | [ISA-CONTEXT-COMMANDS.md](ISA-CONTEXT-COMMANDS.md) | Comprehensive command reference |
 | [GIT-FLOW-SETUP.md](GIT-FLOW-SETUP.md) | Git workflow documentation |
 | [ISA-SEMANTIC-SETUP.md](ISA-SEMANTIC-SETUP.md) | Semantic context setup guide |

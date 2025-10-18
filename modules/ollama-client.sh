@@ -33,11 +33,11 @@ isa_load_shell_functions() {
     local shell_impl="${ISA_ROOT}/modules/shell-support/${detected_shell}-functions.sh"
     
     if [ -f "$shell_impl" ]; then
-        echo "Loading ISA Ollama functions for: $detected_shell" >&2
+        [[ -n "${ISA_DEBUG}" ]] && echo "Loading ISA Ollama functions for: $detected_shell" >&2
         . "$shell_impl"
         return 0
     else
-        echo "Warning: No shell implementation found for $detected_shell, trying bash fallback" >&2
+        [[ -n "${ISA_DEBUG}" ]] && echo "Warning: No shell implementation found for $detected_shell, trying bash fallback" >&2
         local bash_impl="${ISA_ROOT}/modules/shell-support/bash-functions.sh"
         if [ -f "$bash_impl" ]; then
             . "$bash_impl"
@@ -53,13 +53,13 @@ isa_load_shell_functions() {
 if [ -f "${ISA_ROOT}/modules/common/ollama-common.sh" ]; then
     . "${ISA_ROOT}/modules/common/ollama-common.sh"
 else
-    echo "Error: Common configuration not found!" >&2
+    [[ -n "${ISA_DEBUG}" ]] && echo "Error: Common configuration not found!" >&2
     return 1
 fi
 
 # Load the shell-specific implementation
 if ! isa_load_shell_functions; then
-    echo "Failed to load shell-specific Ollama functions" >&2
+    [[ -n "${ISA_DEBUG}" ]] && echo "Failed to load shell-specific Ollama functions" >&2
     return 1
 fi
 

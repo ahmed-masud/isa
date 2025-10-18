@@ -1,9 +1,36 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 # ISA (Intelligent Support Assistant) Shell Configuration
 # Universal configuration - works on macOS and Linux
+# Compatible with: zsh, bash
 # Source this file from your .zshrc or .bashrc
 # Location: ~/projects/isa/isa.rc
-# Last Updated: 2025-10-12
+# Last Updated: 2025-10-18
+
+# ============================================================================
+# ISA LOADING STATUS
+# ============================================================================
+
+# Show loading status (only when manually sourced, not from .zshrc)
+_ISA_LOADING_START=$(date +%s%N 2>/dev/null || date +%s)
+
+# ============================================================================
+# OS DETECTION
+# ============================================================================
+
+# Detect operating system
+if [[ -z "${ISA_OS}" ]]; then
+    case "$(uname -s)" in
+        Darwin*)
+            export ISA_OS="macos"
+            ;;
+        Linux*)
+            export ISA_OS="linux"
+            ;;
+        *)
+            export ISA_OS="unknown"
+            ;;
+    esac
+fi
 
 # ============================================================================
 # ISA ENVIRONMENT SETUP
@@ -306,6 +333,184 @@ isa() {
             fi
             echo "📝 Adding context to vector database..."
             python3 ${ISA_ROOT}/tools/chunk_and_embed.py "$1" 2>/dev/null && echo "✅ Context added successfully" || echo "❌ Failed to add context"
+            ;;
+        learn)
+            # Get current context
+            local current_context=""
+            if [[ -f "${ISA_CONFIG}/.current_context" ]]; then
+                current_context=$(cat "${ISA_CONFIG}/.current_context" 2>/dev/null | tr -d '\0\n\r')
+            fi
+            
+            if [[ -z "${current_context}" ]]; then
+                echo "❌ No current context set. Use 'isa load <context>' or 'isa push <context>' first."
+                return 1
+            fi
+            
+            # Find context directory
+            local context_dir=""
+            for type in people places things; do
+                if [[ -d "${ISA_CONTEXTS}/${type}/${current_context}" ]]; then
+                    context_dir="${ISA_CONTEXTS}/${type}/${current_context}"
+                    break
+                fi
+            done
+            
+            # Check sub-contexts too
+            if [[ -z "${context_dir}" ]] && [[ -d "${ISA_CONFIG}/sub-contexts/${current_context}" ]]; then
+                context_dir="${ISA_CONFIG}/sub-contexts/${current_context}"
+            fi
+            
+            if [[ -z "${context_dir}" ]]; then
+                echo "❌ Context directory not found for: ${current_context}"
+                return 1
+            fi
+            
+            if [[ -z "$1" ]]; then
+                echo "Usage: isa learn <file-or-text>"
+                echo "Examples:"
+                echo "  isa learn /path/to/document.md      # Copy file to context"
+                echo "  isa learn 'Important note content'  # Create note from text"
+                return 1
+            fi
+            
+            # Check if it's a file
+            if [[ -f "$1" ]]; then
+                local filename=$(basename "$1")
+                local dest_file="${context_dir}/${filename}"
+                
+                echo "📚 Learning from file: $1"
+                echo "📍 Context: ${current_context}"
+                
+                # Copy file to context
+                cp "$1" "${dest_file}" || {
+                    echo "❌ Failed to copy file to context"
+                    return 1
+                }
+                
+                echo "✅ Copied to: ${dest_file}"
+                
+                # Add to vector database
+                echo "📊 Adding to vector database..."
+                python3 ${ISA_ROOT}/tools/chunk_and_embed.py "${dest_file}" 2>/dev/null && \
+                    echo "✅ Successfully learned from ${filename}" || \
+                    echo "⚠️  File copied but failed to add to vector database"
+            else
+                # Treat as text content
+                local timestamp=$(date '+%Y%m%d-%H%M%S')
+                local note_file="${context_dir}/note-${timestamp}.md"
+                local content="$*"
+                
+                echo "📝 Creating note in context: ${current_context}"
+                
+                # Create note file with content
+                cat > "${note_file}" << EOF
+# Note - $(date '+%Y-%m-%d %H:%M:%S')
+
+${content}
+
+---
+*Created by ISA learn command*
+EOF
+                
+                echo "✅ Created: $(basename "${note_file}")"
+                
+                # Add to vector database
+                echo "📊 Adding to vector database..."
+                python3 ${ISA_ROOT}/tools/chunk_and_embed.py "${note_file}" 2>/dev/null && \
+                    echo "✅ Successfully learned note" || \
+                    echo "⚠️  Note created but failed to add to vector database"
+            fi
+            ;;
+        unlearn)
+            # Get current context
+            local current_context=""
+            if [[ -f "${ISA_CONFIG}/.current_context" ]]; then
+                current_context=$(cat "${ISA_CONFIG}/.current_context" 2>/dev/null | tr -d '\0\n\r')
+            fi
+            
+            if [[ -z "${current_context}" ]]; then
+                echo "❌ No current context set. Use 'isa load <context>' or 'isa push <context>' first."
+                return 1
+            fi
+            
+            # Find context directory
+            local context_dir=""
+            for type in people places things; do
+                if [[ -d "${ISA_CONTEXTS}/${type}/${current_context}" ]]; then
+                    context_dir="${ISA_CONTEXTS}/${type}/${current_context}"
+                    break
+                fi
+            done
+            
+            # Check sub-contexts too
+            if [[ -z "${context_dir}" ]] && [[ -d "${ISA_CONFIG}/sub-contexts/${current_context}" ]]; then
+                context_dir="${ISA_CONFIG}/sub-contexts/${current_context}"
+            fi
+            
+            if [[ -z "${context_dir}" ]]; then
+                echo "❌ Context directory not found for: ${current_context}"
+                return 1
+            fi
+            
+            if [[ -z "$1" ]]; then
+                echo "Usage: isa unlearn <filename>"
+                echo "Example: isa unlearn note-20251018-012345.md"
+                echo ""
+                echo "📂 Files in current context (${current_context}):"
+                ls -1 "${context_dir}"/*.md 2>/dev/null | while read file; do
+                    echo "  - $(basename "$file")"
+                done
+                return 1
+            fi
+            
+            local filename="$1"
+            local file_path="${context_dir}/${filename}"
+            
+            # Handle both with and without .md extension
+            if [[ ! -f "${file_path}" ]] && [[ -f "${file_path}.md" ]]; then
+                file_path="${file_path}.md"
+                filename="${filename}.md"
+            fi
+            
+            if [[ ! -f "${file_path}" ]]; then
+                echo "❌ File not found in context: ${filename}"
+                echo ""
+                echo "📂 Available files:"
+                ls -1 "${context_dir}"/*.md 2>/dev/null | while read file; do
+                    echo "  - $(basename "$file")"
+                done
+                return 1
+            fi
+            
+            # Protect core files
+            case "${filename}" in
+                README.md|PRIORITIES.md|INDEX.md)
+                    echo "⚠️  Warning: '${filename}' is a core context file."
+                    echo -n "Are you sure you want to remove it? [y/N] "
+                    read -r confirm
+                    if [[ "${confirm}" != "y" ]] && [[ "${confirm}" != "Y" ]]; then
+                        echo "❌ Cancelled"
+                        return 1
+                    fi
+                    ;;
+            esac
+            
+            echo "🗑️  Removing: ${filename}"
+            echo "📍 Context: ${current_context}"
+            
+            # Remove the file
+            rm "${file_path}" && \
+                echo "✅ Removed ${filename}" || {
+                echo "❌ Failed to remove file"
+                return 1
+            }
+            
+            # Rebuild vector database to remove the content
+            echo "🔄 Rebuilding vector database to remove learned content..."
+            curl -s -X POST http://192.168.1.161:8000/rebuild 2>/dev/null >/dev/null
+            echo "📊 Re-syncing contexts..."
+            isa context-sync >/dev/null 2>&1
+            echo "✅ Successfully unlearned ${filename}"
             ;;
         push|context-push)
             if [[ -z "$1" ]]; then
@@ -648,6 +853,8 @@ SEMANTIC CONTEXT COMMANDS:
   context-health      Check all semantic services
   context-rebuild     Rebuild vector database index
   context-add <file>  Add a context file to database
+  learn <file|text>   Add file or text to current context
+  unlearn <filename>  Remove file from current context
   
   Short aliases: ctx-sync, ctx-stats, ctx-search, ctx-health, ctx-rebuild, ctx-add, ctx-switch
 
@@ -727,6 +934,10 @@ EXAMPLES:
   isa ctx-health                            # Traditional form
   isa ctx-sync                              # Traditional form
   
+  isa learn meeting-notes.md                # Add file to current context
+  isa learn "Remember to call Bob tomorrow" # Add text note to current context
+  isa unlearn note-20251018-012345.md       # Remove file from current context
+  
   isa push ahmed-masud                      # Push current, load ahmed-masud
   isa pop                                   # Return to previous context
   isa stack                                 # Show context stack
@@ -796,6 +1007,7 @@ computer() {
         ask|analyze|suggest|ai-status|\
         context-sync|ctx-sync|context-stats|ctx-stats|context-search|ctx-search|\
         context-health|ctx-health|context-rebuild|ctx-rebuild|context-add|ctx-add|\
+        learn|unlearn|\
         push|context-push|pop|context-pop|stack|context-stack|peek|context-peek|\
         breadcrumbs|context-breadcrumbs|stack-clear|context-clear|stack-history|context-history|\
         drive-mount|gdrive-mount|mount-drive|drive-unmount|gdrive-unmount|unmount-drive|\
@@ -1024,18 +1236,40 @@ isa-install() {
 if [[ -o interactive ]] && [[ -z "${ISA_LOADED}" ]]; then
     export ISA_LOADED=1
     
-    # Only show if priorities file exists
-    if [[ -f "${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md" ]]; then
-        echo "✨ ISA (Issa) loaded | Type 'isa help' for commands | 'isa-morning' for daily brief"
-        
-        # Check for urgent items and show notification
-        if grep -q "Status.*NOT STARTED.*Deadline" ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md 2>/dev/null; then
-            echo "⚠️  URGENT: You have items with approaching deadlines! Run 'isa urgent'"
+    # Calculate load time
+    local load_end=$(date +%s%N 2>/dev/null || date +%s)
+    local load_time=0
+    if [[ -n "${_ISA_LOADING_START}" ]]; then
+        if [[ "$load_end" =~ ^[0-9]+$ ]] && [[ "${_ISA_LOADING_START}" =~ ^[0-9]+$ ]]; then
+            # Nanoseconds available
+            if [[ ${#load_end} -gt 10 ]]; then
+                load_time=$(( (load_end - _ISA_LOADING_START) / 1000000 ))
+            else
+                # Seconds only
+                load_time=$(( (load_end - _ISA_LOADING_START) * 1000 ))
+            fi
         fi
-    else
-        echo "✨ ISA (Issa) loaded | Type 'isa help' for commands"
-        echo "💡 Create your first context: isa edit"
     fi
+    
+    # Compact status message
+    local urgent_count=0
+    if [[ -f "${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md" ]]; then
+        urgent_count=$(grep -c "Status.*NOT STARTED.*Deadline" ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md 2>/dev/null || echo "0")
+        # Ensure it's a valid number
+        [[ ! "${urgent_count}" =~ ^[0-9]+$ ]] && urgent_count=0
+    fi
+    
+    # Single line status with OS info
+    local os_label="🐧"  # Linux penguin
+    [[ "${ISA_OS}" == "macos" ]] && os_label="🍎"  # Apple
+    
+    if [[ ${urgent_count:-0} -gt 0 ]]; then
+        echo "✨ ISA loaded (${load_time}ms) ${os_label} | 🔥 ${urgent_count} urgent items | isa help"
+    else
+        echo "✨ ISA loaded (${load_time}ms) ${os_label} | isa help for commands"
+    fi
+    
+    unset _ISA_LOADING_START
 fi
 
 # ============================================================================
@@ -1080,34 +1314,87 @@ fi
 # CAFFEINATE HELPERS (Prevent Sleep During Operations)
 # ============================================================================
 
-# Prevent sleep for duration (in seconds)
+# Prevent sleep for duration (in seconds) - Cross-platform
 isa-caffeinate() {
     local duration="${1:-3600}"  # Default 1 hour
     echo "☕ Keeping system awake for ${duration} seconds..."
     echo "   Press Ctrl+C to stop"
-    caffeinate -disu -t ${duration}
+    
+    if [[ "${ISA_OS}" == "macos" ]]; then
+        caffeinate -disu -t ${duration}
+    elif [[ "${ISA_OS}" == "linux" ]]; then
+        if command -v systemd-inhibit >/dev/null 2>&1; then
+            systemd-inhibit --what=idle:sleep:handle-lid-switch --who="ISA" --why="User request" sleep ${duration}
+        elif command -v gnome-session-inhibit >/dev/null 2>&1; then
+            gnome-session-inhibit --inhibit idle:suspend --inhibit-only sleep ${duration}
+        else
+            echo "⚠️  No sleep prevention tool found on Linux"
+            echo "   Install systemd or gnome-session for this feature"
+            return 1
+        fi
+    else
+        echo "⚠️  Unsupported OS: ${ISA_OS}"
+        return 1
+    fi
 }
 
-# Prevent sleep while running a command
+# Prevent sleep while running a command - Cross-platform
 isa-nosleep() {
     if [[ -z "$1" ]]; then
         echo "Usage: isa-nosleep <command>"
         echo "Example: isa-nosleep 'long-running-script.sh'"
         return 1
     fi
-    echo "☕ Running with caffeinate (system won't sleep)..."
-    caffeinate -disu "$@"
+    echo "☕ Running with sleep prevention..."
+    
+    if [[ "${ISA_OS}" == "macos" ]]; then
+        caffeinate -disu "$@"
+    elif [[ "${ISA_OS}" == "linux" ]]; then
+        if command -v systemd-inhibit >/dev/null 2>&1; then
+            systemd-inhibit --what=idle:sleep:handle-lid-switch --who="ISA" --why="Running command" "$@"
+        elif command -v gnome-session-inhibit >/dev/null 2>&1; then
+            gnome-session-inhibit --inhibit idle:suspend "$@"
+        else
+            echo "⚠️  No sleep prevention tool found, running command anyway..."
+            "$@"
+        fi
+    else
+        echo "⚠️  Unsupported OS, running command anyway..."
+        "$@"
+    fi
 }
 
-# Toggle indefinite caffeinate (background process)
+# Toggle indefinite caffeinate (background process) - Cross-platform
 isa-awake() {
-    if pgrep -f "caffeinate -disu" > /dev/null; then
-        pkill -f "caffeinate -disu"
-        echo "😴 System can now sleep normally"
+    if [[ "${ISA_OS}" == "macos" ]]; then
+        if pgrep -f "caffeinate -disu" > /dev/null; then
+            pkill -f "caffeinate -disu"
+            echo "😴 System can now sleep normally"
+        else
+            caffeinate -disu &
+            echo "☕ System will stay awake indefinitely"
+            echo "   Run 'isa-awake' again to allow sleep"
+        fi
+    elif [[ "${ISA_OS}" == "linux" ]]; then
+        # Check if systemd-inhibit is running
+        if pgrep -f "systemd-inhibit.*ISA-keep-awake" > /dev/null; then
+            pkill -f "systemd-inhibit.*ISA-keep-awake"
+            echo "😴 System can now sleep normally"
+        else
+            if command -v systemd-inhibit >/dev/null 2>&1; then
+                # Run indefinitely with a long sleep
+                (systemd-inhibit --what=idle:sleep:handle-lid-switch --who="ISA-keep-awake" --why="User request" sleep infinity &)
+                echo "☕ System will stay awake indefinitely"
+                echo "   Run 'isa-awake' again to allow sleep"
+            else
+                echo "⚠️  systemd-inhibit not found on this Linux system"
+                echo "   Install systemd for this feature"
+                return 1
+            fi
+        fi
     else
-        caffeinate -disu &
-        echo "☕ System will stay awake indefinitely"
-        echo "   Run 'isa-awake' again to allow sleep"
+        echo "⚠️  Unsupported OS: ${ISA_OS}"
+        return 1
     fi
 }
 
@@ -1115,14 +1402,14 @@ isa-awake() {
 # USER CONFIGURATION LOADING
 # ============================================================================
 
-# Load user configuration if it exists
+# Load user configuration if it exists (suppress output)
 if [[ -f "${ISA_CONFIG}/.isarc" ]]; then
-    source "${ISA_CONFIG}/.isarc"
+    source "${ISA_CONFIG}/.isarc" 2>/dev/null
 fi
 
-# Load AI/Ollama integration module if available
+# Load AI/Ollama integration module if available (suppress output)
 if [[ -f "${ISA_ROOT}/modules/ollama-client.sh" ]]; then
-    source "${ISA_ROOT}/modules/ollama-client.sh"
+    source "${ISA_ROOT}/modules/ollama-client.sh" 2>/dev/null
 fi
 
 # ============================================================================
