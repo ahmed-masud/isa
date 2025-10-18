@@ -50,6 +50,17 @@ export ISA_BIN="${HOME}/.local/bin"
 [[ ! -d "${ISA_CONTEXTS}" ]] && mkdir -p "${ISA_CONTEXTS}"
 [[ ! -d "${ISA_BIN}" ]] && mkdir -p "${ISA_BIN}"
 
+# Service Configuration - can be overridden in ~/.config/isa/config
+export ISA_OLLAMA_HOST="${ISA_OLLAMA_HOST:-192.168.1.161}"
+export ISA_OLLAMA_PORT="${ISA_OLLAMA_PORT:-11434}"
+export ISA_VECTOR_HOST="${ISA_VECTOR_HOST:-192.168.1.161}"
+export ISA_VECTOR_PORT="${ISA_VECTOR_PORT:-8000}"
+export ISA_MODELS_DEV_API="${ISA_MODELS_DEV_API:-https://api.models.dev/v1}"
+
+# Derived URLs for convenience
+export ISA_OLLAMA_URL="http://${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}"
+export ISA_VECTOR_URL="http://${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}"
+
 # ============================================================================
 # ISA CORE ALIASES
 # ============================================================================
@@ -113,6 +124,144 @@ isa() {
         edit)
             ${EDITOR:-vim} ${ISA_CONTEXTS}/people/ahmed-masud/PRIORITIES.md
             ;;
+	      show)
+            # Enhanced show command with intelligent context parsing
+            local show_args="$*"
+            
+            if [[ -z "$show_args" ]]; then
+                echo "🤔 What would you like me to show?"
+                echo ""
+                echo "📋 Personal & Tasks:"
+                echo "  isa show priorities    # Your personal priorities"
+                echo "  isa show urgent       # Urgent items"
+                echo "  isa show week         # This week's tasks"
+                echo "  isa show todo         # Todo items"
+                echo ""
+                echo "🔧 Context & System:"
+                echo "  isa show contexts     # Available contexts"
+                echo "  isa show config       # System configuration" 
+                echo "  isa show status       # System status"
+		echo "  isa show services     # AI & Database services"
+                return 0
+            fi
+            
+            local args_lower=$(echo "$show_args" | tr '[:upper:]' '[:lower:]')
+            case "$args_lower" in
+                priorities|priority)
+                    isa me
+                    ;;
+                urgent)
+                    isa urgent
+                    ;;
+                week|weekly)
+                    isa week
+                    ;;
+                todo|todos)
+                    isa todo
+                    ;;
+                contexts)
+                    isa contexts
+                    ;;
+                config|configuration)
+                    echo "🔧 ISA Configuration:"
+                    echo "ISA_ROOT: ${ISA_ROOT}"
+                    echo "ISA_CONFIG: ${ISA_CONFIG}" 
+                    echo "ISA_CONTEXTS: ${ISA_CONTEXTS}"
+                    ;;
+                status|health)
+                    echo "📊 ISA System Status"
+                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    echo "🏠 Environment:"
+                    echo "  ISA Root: ${ISA_ROOT}"
+                    echo "  Current Directory: $(pwd)"
+                    echo ""
+                    
+                    echo "🤖 AI Services:"
+                    # Check Ollama server
+                    if command -v nc >/dev/null 2>&1; then
+                        if nc -z -w3 ${ISA_OLLAMA_HOST} ${ISA_OLLAMA_PORT} 2>/dev/null; then
+                            echo "  ✅ Ollama Server (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT})"
+                        else
+                            echo "  ❌ Ollama Server (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}) - Not reachable"
+                        fi
+                    else
+                        echo "  ❓ Ollama Server (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}) - Cannot check"
+                    fi
+                    
+                    # Check Models.dev (external)
+                    echo "  🌐 Models.dev API (https://api.models.dev/v1) - External service"
+                    
+                    echo ""
+                    echo "🗂️  Vector Database:"
+                    # Check vector service
+                    if command -v nc >/dev/null 2>&1; then
+                        if nc -z -w3 ${ISA_VECTOR_HOST} ${ISA_VECTOR_PORT} 2>/dev/null; then
+                            echo "  ✅ Vector Service (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT})"
+                        else
+                            echo "  ❌ Vector Service (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}) - Not reachable"
+                        fi
+                    else
+                        echo "  ❓ Vector Service (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}) - Cannot check"
+                    fi
+                    
+                    echo ""
+                    echo "🔧 System Tools:"
+                    if command -v python3 >/dev/null; then
+                        echo "  ✅ Python3 available"
+                    else
+                        echo "  ❌ Python3 not found"
+                    fi
+                    
+                    if [[ -f "${ISA_ROOT}/tools/command_intent.py" ]]; then
+                        echo "  ✅ Command intent system available"
+                    else
+                        echo "  ❌ Command intent system missing"
+                    fi
+                    
+                    if command -v nc >/dev/null; then
+                        echo "  ✅ Network connectivity check (nc) available"
+                    else
+                        echo "  ⚠️  Network connectivity check (nc) not available"
+                    fi
+                    ;;
+         	services)
+                    echo "🚀 ISA Service Status"
+                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    echo ""
+                    echo "🤖 AI Services:"
+                    # Check Ollama server
+                    if command -v nc >/dev/null 2>&1; then
+                        if nc -z -w3 ${ISA_OLLAMA_HOST} ${ISA_OLLAMA_PORT} 2>/dev/null; then
+                            echo "  ✅ Ollama Server (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT})"
+                        else
+                            echo "  ❌ Ollama Server (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}) - Not reachable"
+                        fi
+                    else
+                        echo "  ❓ Ollama Server (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}) - Cannot check"
+                    fi
+                    
+                    echo "  🌐 Models.dev API (https://api.models.dev/v1) - External service"
+                    echo ""
+                    
+                    echo "🗂️  Vector Database:"
+                    # Check vector service
+                    if command -v nc >/dev/null 2>&1; then
+                        if nc -z -w3 ${ISA_VECTOR_HOST} ${ISA_VECTOR_PORT} 2>/dev/null; then
+                            echo "  ✅ Vector Service (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT})"
+                        else
+                            echo "  ❌ Vector Service (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}) - Not reachable"
+                        fi
+                    else
+                        echo "  ❓ Vector Service (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}) - Cannot check"
+                    fi
+                    ;;
+                *)
+                    echo "🤔 Not sure what to show: '$show_args'"
+                    echo "Try: priorities, urgent, week, todo, contexts, config, status"
+                    return 1
+                    ;;
+            esac
+            ;;
         contexts|list)
             # Read current context
             local current_context=""
@@ -130,7 +279,8 @@ isa() {
                     echo "📂 ${type}:"
                     # List contexts with current context indicator
                     if command -v exa >/dev/null 2>&1; then
-                        for ctx in ${ISA_CONTEXTS}/${type}/*(/N); do
+                        for ctx in "${ISA_CONTEXTS}/${type}"/*; do
+	    		    [[ -d "$ctx" ]] || continue
                             local ctx_name=$(basename "$ctx")
                             if [[ "${ctx_name}" = "${current_context}" ]]; then
                                 echo "  ➤ ${ctx_name} 🎯 (current)"
@@ -145,7 +295,7 @@ isa() {
                         done
                     else
                         # Fallback for systems without exa
-                        for ctx in ${ISA_CONTEXTS}/${type}/*/; do
+                        for ctx in "${ISA_CONTEXTS}/${type}"/*; do
                             if [[ -d "$ctx" ]]; then
                                 local ctx_name=$(basename "$ctx")
                                 if [[ "${ctx_name}" = "${current_context}" ]]; then
@@ -274,7 +424,7 @@ isa() {
         context-stats|ctx-stats)
             echo "📊 Vector Database Statistics"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            curl -s http://192.168.1.161:8000/stats 2>/dev/null | python3 -c "import json, sys; data=json.load(sys.stdin); print(f'  Total Chunks: {data.get(\"total_chunks\", 0)}\n  Trained: {data.get(\"is_trained\", False)}\n  Storage: {data.get(\"storage_dir\", \"unknown\")}')" || echo "  ❌ Vector service not available"
+            curl -s http://${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}/stats 2>/dev/null | python3 -c "import json, sys; data=json.load(sys.stdin); print(f'  Total Chunks: {data.get(\"total_chunks\", 0)}\n  Trained: {data.get(\"is_trained\", False)}\n  Storage: {data.get(\"storage_dir\", \"unknown\")}')" || echo "  ❌ Vector service not available"
             ;;
         context-search|ctx-search)
             if [[ -z "$1" ]]; then
@@ -290,15 +440,15 @@ isa() {
             ;;
         context-rebuild|ctx-rebuild)
             echo "🔨 Rebuilding vector database index..."
-            curl -s -X POST http://192.168.1.161:8000/rebuild 2>/dev/null | python3 -c "import json, sys; data=json.load(sys.stdin); print(f'✅ Rebuilt: {data.get(\"total_chunks\", 0)} chunks')" || echo "❌ Rebuild failed"
+            curl -s -X POST http://${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}/rebuild 2>/dev/null | python3 -c "import json, sys; data=json.load(sys.stdin); print(f'✅ Rebuilt: {data.get(\"total_chunks\", 0)} chunks')" || echo "❌ Rebuild failed"
             ;;
         context-health|ctx-health)
             echo "🏥 Checking semantic context services..."
             echo ""
             
             # Check vector database
-            echo "Vector Database (192.168.1.161:8000):"
-            if curl -s http://192.168.1.161:8000/health 2>/dev/null | grep -q "healthy"; then
+            echo "Vector Database (${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}):"
+            if curl -s http://${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}/health 2>/dev/null | grep -q "healthy"; then
                 echo "  ✅ Healthy"
             else
                 echo "  ❌ Unavailable"
@@ -306,8 +456,8 @@ isa() {
             
             # Check Ollama
             echo ""
-            echo "Ollama AI (192.168.1.161:11434):"
-            if curl -s http://192.168.1.161:11434/api/tags 2>/dev/null | grep -q "models"; then
+            echo "Ollama AI (${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}):"
+            if curl -s http://${ISA_OLLAMA_HOST}:${ISA_OLLAMA_PORT}/api/tags 2>/dev/null | grep -q "models"; then
                 echo "  ✅ Healthy"
             else
                 echo "  ❌ Unavailable"
@@ -507,7 +657,7 @@ EOF
             
             # Rebuild vector database to remove the content
             echo "🔄 Rebuilding vector database to remove learned content..."
-            curl -s -X POST http://192.168.1.161:8000/rebuild 2>/dev/null >/dev/null
+            curl -s -X POST http://${ISA_VECTOR_HOST}:${ISA_VECTOR_PORT}/rebuild 2>/dev/null >/dev/null
             echo "📊 Re-syncing contexts..."
             isa context-sync >/dev/null 2>&1
             echo "✅ Successfully unlearned ${filename}"
@@ -1035,7 +1185,8 @@ _isa_load_completion() {
     local contexts=()
     for type in people places things; do
         if [[ -d "${ISA_CONTEXTS}/${type}" ]]; then
-            for ctx in ${ISA_CONTEXTS}/${type}/*(/); do
+            for ctx in "${ISA_CONTEXTS}/${type}/"*; do
+	    	[[ -d "$ctx" ]] || continue
                 contexts+=($(basename ${ctx}))
             done
         fi
